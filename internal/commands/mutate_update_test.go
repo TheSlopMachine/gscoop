@@ -14,6 +14,7 @@ import (
 
 	"github.com/TheSlopMachine/gscoop/internal/gitengine"
 	"github.com/TheSlopMachine/gscoop/internal/install"
+	"github.com/TheSlopMachine/gscoop/internal/junction"
 )
 
 // stubDownloader pretends to fetch artifacts without network.
@@ -108,6 +109,7 @@ func withStubs(t *testing.T) {
 func updateEnv(t *testing.T) *Env {
 	t.Helper()
 	root := t.TempDir()
+	t.Cleanup(func() { _ = junction.RemoveAll(root) })
 	scoop := filepath.Join(root, "scoop")
 	env := &Env{
 		ScoopDir:   scoop,

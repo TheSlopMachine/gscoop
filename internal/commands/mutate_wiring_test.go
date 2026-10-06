@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/TheSlopMachine/gscoop/internal/gitengine"
+	"github.com/TheSlopMachine/gscoop/internal/junction"
 )
 
 // pinHistoryEngine answers history lookups with one canned manifest,
@@ -61,6 +62,7 @@ func (e *pinHistoryEngine) StashLike(repo string) (gitengine.StashResult, error)
 func pinEnv(t *testing.T) *Env {
 	t.Helper()
 	root := t.TempDir()
+	t.Cleanup(func() { _ = junction.RemoveAll(root) })
 	scoop := filepath.Join(root, "scoop")
 	env := &Env{
 		ScoopDir:   scoop,

@@ -40,8 +40,9 @@ func SetMutationSeams(d install.Downloader, e install.Extractor) {
 // mutateEnv adapts commands Env to install Env.
 func (e *Env) mutateEnv() install.Env {
 	return install.Env{
-		ScoopDir:  e.ScoopDir,
-		GlobalDir: e.GlobalDir,
+		ScoopDir:   e.ScoopDir,
+		GlobalDir:  e.GlobalDir,
+		NoJunction: e.NoJunction,
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/TheSlopMachine/gscoop/internal/deps"
 	"github.com/TheSlopMachine/gscoop/internal/hook"
+	"github.com/TheSlopMachine/gscoop/internal/junction"
 )
 
 type mapFetch struct {
@@ -51,6 +52,7 @@ func (memExtractor) Extract(file, destDir string) error { return nil }
 func testEnv(t *testing.T) Env {
 	t.Helper()
 	root := t.TempDir()
+	t.Cleanup(func() { _ = junction.RemoveAll(root) })
 	return Env{ScoopDir: filepath.Join(root, "scoop"), GlobalDir: filepath.Join(root, "global")}
 }
 
