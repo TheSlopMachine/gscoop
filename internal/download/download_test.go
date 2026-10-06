@@ -17,9 +17,9 @@ import (
 	"testing"
 	"time"
 
-	"gscoop/internal/config"
-	"gscoop/internal/state"
-	"gscoop/internal/ui"
+	"github.com/TheSlopMachine/gscoop/internal/config"
+	"github.com/TheSlopMachine/gscoop/internal/state"
+	"github.com/TheSlopMachine/gscoop/internal/ui"
 )
 
 func testTime() time.Time {

@@ -1,0 +1,65 @@
+# Release for gscoop (module github.com/TheSlopMachine/gscoop, Windows-first).
+#
+# Trigger: push of a `v*` tag (no tags exist yet; the first tag creates the
+# first release). Builds ./cmd/gscoop for the Windows architectures served by
+# bucket/gscoop.json, writes SHA-256 checksums, and uploads everything to the
+# GitHub release. After the release is published, copy the released zip
+# SHA-256 values into bucket/gscoop.json, which still holds zero placeholders
+# until the first tag (see the TODO markers at the top of that file).
+#
+# Open item: no signing identity is configured yet. Binaries ship unsigned
+# until a signing step is added here (see README.md roadmap note).
+
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build Windows binaries
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          $matrix = @(
+            @{ Arch = "amd64"; Suffix = "windows-amd64" },
+            @{ Arch = "386"; Suffix = "windows-386" },
+            @{ Arch = "arm64"; Suffix = "windows-arm64" }
+          )
+          foreach ($m in $matrix) {
+            $env:GOOS = "windows"
+            $env:GOARCH = $m.Arch
+            $dir = "dist/gscoop-$version-$($m.Suffix)"
+            New-Item -ItemType Directory -Path $dir -Force | Out-Null
+            go build -o "$dir/gscoop.exe" ./cmd/gscoop
+            Compress-Archive -Path $dir -DestinationPath "$dir.zip"
+          }
+      - name: Write SHA-256 checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path dist -Filter *.zip | ForEach-Object {
+            $h = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$h  $($_.Name)" | Out-File -FilePath "dist/$($_.Name).sha256" -Encoding ascii -NoNewline:$false
+          }
+          Get-ChildItem -Path dist -Recurse | Select-Object FullName
+      - name: Upload to GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/**/*.zip
+            dist/**/*.sha256

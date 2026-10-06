@@ -1,4 +1,4 @@
-module gscoop
+module github.com/TheSlopMachine/gscoop
 
 go 1.22
 

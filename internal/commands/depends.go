@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"gscoop/internal/cli"
+	"github.com/TheSlopMachine/gscoop/internal/cli"
 )
 
 // RunDepends mirrors libexec/scoop-depends.ps1: dependencies in install

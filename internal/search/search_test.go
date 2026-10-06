@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"gscoop/internal/manifest"
+	"github.com/TheSlopMachine/gscoop/internal/manifest"
 )
 
 func layoutBuckets(t *testing.T, buckets map[string]map[string]string) string {

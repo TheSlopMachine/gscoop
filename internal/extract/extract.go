@@ -11,8 +11,8 @@
 // zip via archive/zip; tar families via archive/tar over gzip, bzip2,
 // xz (ulikunitz/xz), and zstd (klauspost/compress); 7z via
 // bodgit/sevenzip except multi-volume .001 (documented gap, external
-// fallback); rar awaits nwaples/rardecode (requested dependency, split
-// assembly helpers included); nupkg is a zip container; msi stays on
+// fallback); rar via nwaples/rardecode (RAR4/RAR5 reader, split sets
+// spanned by the reader); nupkg is a zip container; msi stays on
 // the msiexec /a bridge (OS component) with a native reader deferred
 // to phase 3; Inno Setup fails with guidance naming innounp resolution
 // (no silent external use); WiX Burn (dark) is a documented exception;

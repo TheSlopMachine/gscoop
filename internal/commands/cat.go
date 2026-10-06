@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"gscoop/internal/cli"
+	"github.com/TheSlopMachine/gscoop/internal/cli"
 )
 
 // RunCat mirrors libexec/scoop-cat.ps1: it prints the backing manifest as

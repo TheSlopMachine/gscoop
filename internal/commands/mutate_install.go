@@ -14,10 +14,10 @@ import (
 	"io"
 	"os"
 
-	"gscoop/internal/cli"
-	"gscoop/internal/hook"
-	"gscoop/internal/install"
-	"gscoop/internal/shim"
+	"github.com/TheSlopMachine/gscoop/internal/cli"
+	"github.com/TheSlopMachine/gscoop/internal/hook"
+	"github.com/TheSlopMachine/gscoop/internal/install"
+	"github.com/TheSlopMachine/gscoop/internal/shim"
 )
 
 // mutateDownloader is the seam to the download layer owned outside
@@ -172,7 +172,7 @@ func RunInstall(env *Env, out io.Writer, args []string) int {
 			fmt.Fprintf(out, "Couldn't find manifest for '%s'.\n", spec)
 			return 1
 		}
-		tx.Ops = append(tx.Ops, install.Op{App: hit.Name, Version: hit.Manifest.Version, Architecture: arch, Global: global})
+		tx.Ops = append(tx.Ops, install.Op{App: hit.Name, Version: hit.Manifest.Version, Architecture: arch, Global: global, ManifestRaw: hit.Raw})
 	}
 	if err := iex.Install(context.Background(), tx); err != nil {
 		fmt.Fprintln(out, err.Error())

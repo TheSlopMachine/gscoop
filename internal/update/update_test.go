@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"gscoop/internal/config"
-	"gscoop/internal/gitengine"
+	"github.com/TheSlopMachine/gscoop/internal/config"
+	"github.com/TheSlopMachine/gscoop/internal/gitengine"
 )
 
 func testStore(t *testing.T, content string) (*config.Store, string) {

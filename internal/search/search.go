@@ -19,8 +19,8 @@ import (
 	"strings"
 	"sync"
 
-	"gscoop/internal/bucket"
-	"gscoop/internal/manifest"
+	"github.com/TheSlopMachine/gscoop/internal/bucket"
+	"github.com/TheSlopMachine/gscoop/internal/manifest"
 )
 
 // Result is one search row: columns Name/Version/Source/Binaries.

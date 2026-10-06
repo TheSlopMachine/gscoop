@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"gscoop/internal/config"
+	"github.com/TheSlopMachine/gscoop/internal/config"
 )
 
 // Env carries the resolved Scoop roots for one invocation.

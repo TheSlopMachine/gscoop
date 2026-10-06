@@ -57,7 +57,8 @@ you trust; review manifests before installing unknown packages.
 
 ## Antivirus and false positives
 
-Releases ship signed binaries with published hashes. The bundled shim
+Roadmap: releases will ship signed binaries with published hashes (no signed
+release exists yet). The bundled shim
 payloads are the upstream `supporting/shims` binaries, already
 whitelisted by reputation; gscoop installs byte-identical copies. If a
 scanner flags the binary, verify the release hash, then report the
@@ -65,6 +66,6 @@ detection with the scanner name and version.
 
 ## Upstream drift
 
-A nightly CI job runs the differential harness against
-`ScoopInstaller/Scoop@master`. Contract changes open issues
+Roadmap: a scheduled CI job will run the differential harness against
+`ScoopInstaller/Scoop@master`. Contract changes will open issues
 automatically, so silent divergence from classic stays bounded in time.

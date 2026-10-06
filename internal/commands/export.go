@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"gscoop/internal/config"
+	"github.com/TheSlopMachine/gscoop/internal/config"
 )
 
 // exportStripped lists machine-specific config keys excluded from

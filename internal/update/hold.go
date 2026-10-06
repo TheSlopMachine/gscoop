@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"gscoop/internal/config"
+	"github.com/TheSlopMachine/gscoop/internal/config"
 )
 
 // HoldState reports whether the scoop core self-update is held.

@@ -18,10 +18,10 @@ import (
 	"sort"
 	"strings"
 
-	"gscoop/internal/gitengine"
-	"gscoop/internal/install"
-	"gscoop/internal/shim"
-	"gscoop/internal/state"
+	"github.com/TheSlopMachine/gscoop/internal/gitengine"
+	"github.com/TheSlopMachine/gscoop/internal/install"
+	"github.com/TheSlopMachine/gscoop/internal/shim"
+	"github.com/TheSlopMachine/gscoop/internal/state"
 )
 
 // Options selects the roots and junction mode for one check run.

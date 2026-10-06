@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"gscoop/internal/state"
+	"github.com/TheSlopMachine/gscoop/internal/state"
 )
 
 func testRoots(t *testing.T) (Options, string) {

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"gscoop/internal/config"
+	"github.com/TheSlopMachine/gscoop/internal/config"
 )
 
 // GitHubAPIBase is the API root, overridable in tests.

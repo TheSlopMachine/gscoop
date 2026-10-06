@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"gscoop/internal/hook"
-	"gscoop/internal/junction"
-	"gscoop/internal/shim"
+	"github.com/TheSlopMachine/gscoop/internal/hook"
+	"github.com/TheSlopMachine/gscoop/internal/junction"
+	"github.com/TheSlopMachine/gscoop/internal/shim"
 )
 
 // Uninstall removes one version in precise reverse order, mirroring

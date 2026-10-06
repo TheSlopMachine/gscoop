@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"gscoop/internal/gitengine"
-	"gscoop/internal/install"
+	"github.com/TheSlopMachine/gscoop/internal/gitengine"
+	"github.com/TheSlopMachine/gscoop/internal/install"
 )
 
 // stubDownloader pretends to fetch artifacts without network.

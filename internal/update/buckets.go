@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"gscoop/internal/gitengine"
+	"github.com/TheSlopMachine/gscoop/internal/gitengine"
 )
 
 // BucketResult records one synced bucket: HEAD before and after plus

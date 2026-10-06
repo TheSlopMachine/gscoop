@@ -20,7 +20,7 @@ import (
 	"os"
 	"strings"
 
-	"gscoop/internal/config"
+	"github.com/TheSlopMachine/gscoop/internal/config"
 )
 
 // HashError reports a manifest hash mismatch for one URL. It fails only

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gscoop/internal/gitengine"
+	"github.com/TheSlopMachine/gscoop/internal/gitengine"
 )
 
 // semverPattern parses major.minor.patch plus optional pre-release.

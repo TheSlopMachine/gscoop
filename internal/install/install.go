@@ -24,11 +24,11 @@ import (
 	"strings"
 	"time"
 
-	"gscoop/internal/deps"
-	"gscoop/internal/hook"
-	"gscoop/internal/junction"
-	"gscoop/internal/lnk"
-	"gscoop/internal/shim"
+	"github.com/TheSlopMachine/gscoop/internal/deps"
+	"github.com/TheSlopMachine/gscoop/internal/hook"
+	"github.com/TheSlopMachine/gscoop/internal/junction"
+	"github.com/TheSlopMachine/gscoop/internal/lnk"
+	"github.com/TheSlopMachine/gscoop/internal/shim"
 )
 
 // Op is one package operation in a transaction.

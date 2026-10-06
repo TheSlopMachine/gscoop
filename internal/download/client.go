@@ -23,7 +23,7 @@ import (
 	"regexp"
 	"strings"
 
-	"gscoop/internal/config"
+	"github.com/TheSlopMachine/gscoop/internal/config"
 )
 
 // Redirect statuses handled manually, mirroring the handledCodes list

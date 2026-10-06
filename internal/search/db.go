@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gscoop/internal/bucket"
-	"gscoop/internal/manifest"
-	"gscoop/internal/state"
-	"gscoop/internal/version"
+	"github.com/TheSlopMachine/gscoop/internal/bucket"
+	"github.com/TheSlopMachine/gscoop/internal/manifest"
+	"github.com/TheSlopMachine/gscoop/internal/state"
+	"github.com/TheSlopMachine/gscoop/internal/version"
 
 	_ "modernc.org/sqlite"
 )

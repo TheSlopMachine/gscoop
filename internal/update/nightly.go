@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"gscoop/internal/version"
+	"github.com/TheSlopMachine/gscoop/internal/version"
 )
 
 // NightlyDated maps nightly to nightly-yyyyMMdd, mirroring

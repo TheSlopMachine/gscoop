@@ -20,7 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gscoop/internal/ui"
+	"github.com/TheSlopMachine/gscoop/internal/ui"
 )
 
 // progressInterval throttles live progress lines, mirroring the 100ms

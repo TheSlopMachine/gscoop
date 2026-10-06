@@ -1,0 +1,18 @@
+# golangci-lint configuration for gscoop (go 1.22 era, golangci-lint v1.x).
+#
+# Minimal set: vet-equivalent checks plus formatting and spelling basics.
+# CI does not run golangci-lint as a required job; run it locally with:
+#
+#   golangci-lint run ./...
+#
+# Kept minimal on purpose so local runs cannot false-fail on version drift.
+
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - govet
+    - gofmt
+    - misspell
+    - ineffassign

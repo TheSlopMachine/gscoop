@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"gscoop/internal/cli"
+	"github.com/TheSlopMachine/gscoop/internal/cli"
 )
 
 var licenseURL = regexp.MustCompile(`^((ht)|f)tps?://`)

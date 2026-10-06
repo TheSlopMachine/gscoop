@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"gscoop/internal/gitengine"
+	"github.com/TheSlopMachine/gscoop/internal/gitengine"
 )
 
 func dirtied() gitengine.FileStatus {

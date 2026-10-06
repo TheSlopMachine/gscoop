@@ -30,9 +30,9 @@ import (
 	"path/filepath"
 	"sync"
 
-	"gscoop/internal/config"
-	"gscoop/internal/state"
-	"gscoop/internal/ui"
+	"github.com/TheSlopMachine/gscoop/internal/config"
+	"github.com/TheSlopMachine/gscoop/internal/state"
+	"github.com/TheSlopMachine/gscoop/internal/ui"
 )
 
 // Defaults for the Go-only download keys (technical plan Appendix C).

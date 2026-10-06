@@ -17,9 +17,9 @@ import (
 	"sort"
 	"strings"
 
-	"gscoop/internal/cli"
-	"gscoop/internal/doctor"
-	"gscoop/internal/state"
+	"github.com/TheSlopMachine/gscoop/internal/cli"
+	"github.com/TheSlopMachine/gscoop/internal/doctor"
+	"github.com/TheSlopMachine/gscoop/internal/state"
 )
 
 // knownBuckets mirrors C:\devel\Scoop\buckets.json, the known-bucket

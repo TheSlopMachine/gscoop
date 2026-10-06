@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"gscoop/internal/deps"
-	"gscoop/internal/hook"
+	"github.com/TheSlopMachine/gscoop/internal/deps"
+	"github.com/TheSlopMachine/gscoop/internal/hook"
 )
 
 type mapFetch struct {

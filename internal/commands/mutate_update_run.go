@@ -22,14 +22,14 @@ import (
 	"strings"
 	"time"
 
-	"gscoop/internal/cli"
-	"gscoop/internal/config"
-	"gscoop/internal/gitengine"
-	"gscoop/internal/hook"
-	"gscoop/internal/install"
-	"gscoop/internal/junction"
-	"gscoop/internal/shim"
-	"gscoop/internal/update"
+	"github.com/TheSlopMachine/gscoop/internal/cli"
+	"github.com/TheSlopMachine/gscoop/internal/config"
+	"github.com/TheSlopMachine/gscoop/internal/gitengine"
+	"github.com/TheSlopMachine/gscoop/internal/hook"
+	"github.com/TheSlopMachine/gscoop/internal/install"
+	"github.com/TheSlopMachine/gscoop/internal/junction"
+	"github.com/TheSlopMachine/gscoop/internal/shim"
+	"github.com/TheSlopMachine/gscoop/internal/update"
 )
 
 // OwnsPhase3A reports whether name is a Phase 3A command owned by the
@@ -136,7 +136,7 @@ func loadUpdateSettings(env *Env, out io.Writer) (*updateSettings, error) {
 	if v, ok := store.GetString("gscoop_channel"); ok && v != "" {
 		s.channel = strings.ToLower(v)
 	}
-	s.gscoopRepo = "ScoopInstaller/gscoop"
+	s.gscoopRepo = "TheSlopMachine/gscoop"
 	if v, ok := store.GetString("gscoop_repo"); ok && v != "" {
 		s.gscoopRepo = strings.TrimPrefix(strings.TrimPrefix(v, "https://github.com/"), "http://github.com/")
 		s.gscoopRepo = strings.TrimSuffix(s.gscoopRepo, ".git")
@@ -199,6 +199,7 @@ func RunUpdate(env *Env, out io.Writer, args []string) int {
 		}
 	}
 	apps = filterScoop(apps)
+	pins := updatePins(apps)
 	if updateScoop {
 		syncScoopCore(&local, out, engine, cfg, now)
 		syncBuckets(&local, out, engine, cfg)
@@ -265,6 +266,7 @@ func RunUpdate(env *Env, out io.Writer, args []string) int {
 		fmt.Fprintf(out, "Updating one outdated app:\n")
 	}
 	targets = update.SortTargets(targets)
+	targets = attachUpdatePins(&local, out, targets, tuples, pins)
 	stamp := time.Now()
 	suggested := map[string]bool{}
 	var plans []*updatePlan
@@ -310,6 +312,52 @@ func filterScoop(apps []string) []string {
 		out = append(out, a)
 	}
 	return out
+}
+
+// updatePins maps bare app names to @version pins from CLI specs, so
+// resolveUpdateTarget can resolve them from bucket git history.
+func updatePins(apps []string) map[string]string {
+	pins := map[string]string{}
+	for _, a := range apps {
+		spec := update.ParseAppSpec(a)
+		if spec.Version != "" {
+			pins[spec.App] = spec.Version
+		}
+	}
+	return pins
+}
+
+// attachUpdatePins applies @version pins to selected targets and adds
+// explicit targets for pinned apps that outdated selection skipped. Held
+// pins report and skip; pins only take effect for installed apps, which
+// confirmInstalled already verified.
+func attachUpdatePins(env *Env, out io.Writer, targets []update.Target, tuples [][2]any, pins map[string]string) []update.Target {
+	if len(pins) == 0 {
+		return targets
+	}
+	selected := map[string]bool{}
+	for i := range targets {
+		if v, ok := pins[targets[i].App]; ok && targets[i].Pin == "" {
+			targets[i].Pin = v
+		}
+		selected[targets[i].App] = true
+	}
+	for _, t := range tuples {
+		app := t[0].(string)
+		g := t[1].(bool)
+		v, ok := pins[app]
+		if !ok || selected[app] {
+			continue
+		}
+		selected[app] = true
+		st := env.AppStatusFor(app, g)
+		if st.Hold {
+			Warnf(out, "'%s' is held to version %s", app, st.Version)
+			continue
+		}
+		targets = append(targets, update.Target{App: app, Global: g, Current: st.Version, Pin: v})
+	}
+	return update.SortTargets(targets)
 }
 
 // confirmInstalled mirrors Confirm-InstallationStatus
@@ -475,19 +523,32 @@ func resolveUpdateTarget(env *Env, out io.Writer, engine gitengine.GitEngine, cf
 		bucket = "main"
 	}
 	var hit *ManifestHit
-	if url != "" && bucket == "" {
-		hit = env.FindManifest(url, out)
-		plan.url = url
-		plan.spec = url
-	} else {
-		hit = env.FindManifest(bucket+"/"+t.App, out)
+	version := ""
+	if t.Pin != "" && t.Pin != "head" && bucket != "" {
+		raw, ver, err := historyManifest(env, out, engine, cfg, t.App, bucket, t.Pin)
+		if err != nil {
+			return nil, err
+		}
+		plan.raw = raw
 		plan.bucket = bucket
 		plan.spec = bucket + "/" + t.App
+		version = ver
+	} else {
+		if url != "" && bucket == "" {
+			hit = env.FindManifest(url, out)
+			plan.url = url
+			plan.spec = url
+		} else {
+			hit = env.FindManifest(bucket+"/"+t.App, out)
+			plan.bucket = bucket
+			plan.spec = bucket + "/" + t.App
+		}
+		if hit.Manifest == nil || hit.Manifest.Version == "" {
+			return nil, fmt.Errorf("No manifest available for '%s'.", t.App)
+		}
+		version = hit.Manifest.Version
+		plan.raw = hit.Raw
 	}
-	if hit.Manifest == nil || hit.Manifest.Version == "" {
-		return nil, fmt.Errorf("No manifest available for '%s'.", t.App)
-	}
-	version := hit.Manifest.Version
 	nightly := false
 	if version == "nightly" {
 		if !quiet {
@@ -502,13 +563,37 @@ func resolveUpdateTarget(env *Env, out io.Writer, engine gitengine.GitEngine, cf
 		}
 		return nil, errAlreadyInstalled
 	}
-	plan.raw = hit.Raw
 	plan.version = version
 	plan.nightly = nightly
 	return plan, nil
 }
 
 var errAlreadyInstalled = fmt.Errorf("already installed")
+
+// historyManifest resolves an app@version pin from bucket git history,
+// mirroring generate_user_manifest over Find-HistoricalManifest. Shallow
+// clones keep the documented limit: pins beyond HEAD fail with
+// ErrShallowHistory instead of resolving.
+func historyManifest(env *Env, out io.Writer, engine gitengine.GitEngine, cfg *updateSettings, app, bucket, pin string) ([]byte, string, error) {
+	root := env.bucketRoot(bucket)
+	rel, err := filepath.Rel(root, env.FindBucketDirectory(bucket))
+	if err != nil {
+		return nil, "", err
+	}
+	if rel == "." {
+		rel = ""
+	}
+	Infof(out, "Resolving historical manifest for '%s' (%s)", app, pin)
+	raw, _, err := update.FindHistoricalManifest(engine, root, rel, app, pin, cfg.useGitHistory)
+	if err != nil {
+		return nil, "", fmt.Errorf("Could not find manifest for '%s@%s': %w", app, pin, err)
+	}
+	m := parseManifestBytes(raw)
+	if m == nil || m.Version == "" {
+		return nil, "", fmt.Errorf("No manifest available for '%s'.", app)
+	}
+	return raw, m.Version, nil
+}
 
 // planDeps expands missing dependencies into warm ops for one plan.
 // The sequential install phase re-resolves them in order.
@@ -613,6 +698,11 @@ func updateOneApp(env *Env, out io.Writer, cfg *updateSettings, plan *updatePlan
 		Extractor:  mutateExtractor,
 		Hooks:      &hook.Runner{Dir: "", Out: out, Err: out},
 		LookupManifest: func(app, arch string) (*install.ManifestView, error) {
+			if plan.raw != nil && t.Pin != "" && t.Pin != "head" {
+				if m := parseManifestBytes(plan.raw); m != nil {
+					return mutateView(&ManifestHit{Name: t.App, Manifest: m, Raw: plan.raw}, arch, version), nil
+				}
+			}
 			hit := env.FindManifest(spec, out)
 			if hit.Manifest == nil {
 				return nil, fmt.Errorf("Couldn't find manifest for '%s'.", app)

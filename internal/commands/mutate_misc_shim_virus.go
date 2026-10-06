@@ -22,10 +22,10 @@ import (
 	"strings"
 	"time"
 
-	"gscoop/internal/cli"
-	"gscoop/internal/config"
-	"gscoop/internal/shim"
-	"gscoop/internal/update"
+	"github.com/TheSlopMachine/gscoop/internal/cli"
+	"github.com/TheSlopMachine/gscoop/internal/config"
+	"github.com/TheSlopMachine/gscoop/internal/shim"
+	"github.com/TheSlopMachine/gscoop/internal/update"
 )
 
 // RunShim mirrors libexec/scoop-shim.ps1 argument handling.

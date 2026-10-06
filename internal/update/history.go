@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"gscoop/internal/gitengine"
+	"github.com/TheSlopMachine/gscoop/internal/gitengine"
 )
 
 // ErrShallowHistory reports that version-pinned resolution needs full

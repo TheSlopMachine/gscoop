@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"gscoop/internal/config"
-	"gscoop/internal/gitengine"
+	"github.com/TheSlopMachine/gscoop/internal/config"
+	"github.com/TheSlopMachine/gscoop/internal/gitengine"
 )
 
 // RunBucketAdd mirrors add_bucket (lib/buckets.ps1:123-170): exit 2

@@ -5,19 +5,19 @@
     ],
     "version": "0.1.0",
     "description": "Native Go replacement for the Scoop command-line installer.",
-    "homepage": "https://github.com/ScoopInstaller/gscoop",
-    "license": "MIT",
+    "homepage": "https://github.com/TheSlopMachine/gscoop",
+    "license": "Unlicense",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/ScoopInstaller/gscoop/releases/download/v0.1.0/gscoop-0.1.0-windows-amd64.zip",
+            "url": "https://github.com/TheSlopMachine/gscoop/releases/download/v0.1.0/gscoop-0.1.0-windows-amd64.zip",
             "hash": "0000000000000000000000000000000000000000000000000000000000000000"
         },
         "32bit": {
-            "url": "https://github.com/ScoopInstaller/gscoop/releases/download/v0.1.0/gscoop-0.1.0-windows-386.zip",
+            "url": "https://github.com/TheSlopMachine/gscoop/releases/download/v0.1.0/gscoop-0.1.0-windows-386.zip",
             "hash": "0000000000000000000000000000000000000000000000000000000000000000"
         },
         "arm64": {
-            "url": "https://github.com/ScoopInstaller/gscoop/releases/download/v0.1.0/gscoop-0.1.0-windows-arm64.zip",
+            "url": "https://github.com/TheSlopMachine/gscoop/releases/download/v0.1.0/gscoop-0.1.0-windows-arm64.zip",
             "hash": "0000000000000000000000000000000000000000000000000000000000000000"
         }
     },
@@ -43,18 +43,18 @@
         "}"
     ],
     "checkver": {
-        "github": "https://github.com/ScoopInstaller/gscoop"
+        "github": "https://github.com/TheSlopMachine/gscoop"
     },
     "autoupdate": {
         "architecture": {
             "64bit": {
-                "url": "https://github.com/ScoopInstaller/gscoop/releases/download/v$version/gscoop-$version-windows-amd64.zip"
+                "url": "https://github.com/TheSlopMachine/gscoop/releases/download/v$version/gscoop-$version-windows-amd64.zip"
             },
             "32bit": {
-                "url": "https://github.com/ScoopInstaller/gscoop/releases/download/v$version/gscoop-$version-windows-386.zip"
+                "url": "https://github.com/TheSlopMachine/gscoop/releases/download/v$version/gscoop-$version-windows-386.zip"
             },
             "arm64": {
-                "url": "https://github.com/ScoopInstaller/gscoop/releases/download/v$version/gscoop-$version-windows-arm64.zip"
+                "url": "https://github.com/TheSlopMachine/gscoop/releases/download/v$version/gscoop-$version-windows-arm64.zip"
             }
         },
         "hash": {

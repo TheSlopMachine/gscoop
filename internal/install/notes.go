@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"gscoop/internal/hook"
+	"github.com/TheSlopMachine/gscoop/internal/hook"
 )
 
 // ShowNotes prints manifest notes with substitution, mirroring

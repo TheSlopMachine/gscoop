@@ -13,9 +13,9 @@ import (
 	"io"
 	"os"
 
-	"gscoop/internal/cli"
-	"gscoop/internal/install"
-	"gscoop/internal/update"
+	"github.com/TheSlopMachine/gscoop/internal/cli"
+	"github.com/TheSlopMachine/gscoop/internal/install"
+	"github.com/TheSlopMachine/gscoop/internal/update"
 )
 
 // RunCleanup mirrors libexec/scoop-cleanup.ps1: -a/--all,

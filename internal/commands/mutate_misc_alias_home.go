@@ -18,8 +18,8 @@ import (
 	"sort"
 	"strings"
 
-	"gscoop/internal/cli"
-	"gscoop/internal/config"
+	"github.com/TheSlopMachine/gscoop/internal/cli"
+	"github.com/TheSlopMachine/gscoop/internal/config"
 )
 
 // RunAlias mirrors libexec/scoop-alias.ps1: subcommands add, rm,

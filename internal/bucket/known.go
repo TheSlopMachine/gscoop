@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"gscoop/internal/manifest"
+	"github.com/TheSlopMachine/gscoop/internal/manifest"
 )
 
 // Registry is the known-bucket registry from buckets.json with file order

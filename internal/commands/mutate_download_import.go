@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	"gscoop/internal/cli"
-	"gscoop/internal/install"
+	"github.com/TheSlopMachine/gscoop/internal/cli"
+	"github.com/TheSlopMachine/gscoop/internal/install"
 )
 
 // RunDownload mirrors scoop-download.ps1 flag surface:
@@ -47,7 +47,7 @@ func RunDownload(env *Env, out io.Writer, args []string) int {
 			continue
 		}
 		Infof(out, "Downloading '%s' [%s]", spec, arch)
-		op := install.Op{App: hit.Name, Version: hit.Manifest.Version, Architecture: arch}
+		op := install.Op{App: hit.Name, Version: hit.Manifest.Version, Architecture: arch, ManifestRaw: hit.Raw}
 		if _, err := mutateDownloader.Download(context.Background(), op, env.CacheDir); err != nil {
 			fmt.Fprintln(out, err.Error())
 			failed = true

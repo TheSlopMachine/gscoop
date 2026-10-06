@@ -1,0 +1,35 @@
+# Upstream drift watch (see Scoop-Go-Rewrite-Technical-Plan.md section 9.5).
+#
+# Method: parse-check the local manifest corpus only. The job builds the tree
+# and runs the manifest package tests, which parse the fixtures under
+# testdata/ plus bucket/gscoop.json. It performs no network access and clones
+# no buckets, so it stays green without credentials and cannot fail on
+# transient network errors. A full differential harness against
+# ScoopInstaller/Scoop@master remains a roadmap item: add it as a separate
+# job here once it can run hermetically.
+#
+# Cadence: weekly plus manual dispatch. Tighten to nightly once the full
+# differential harness lands.
+
+name: drift
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  corpus:
+    runs-on: windows-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build
+        run: go build ./...
+      - name: Manifest corpus parse check (no network)
+        run: go test ./internal/manifest/... -count=1

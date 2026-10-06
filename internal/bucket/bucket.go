@@ -14,9 +14,9 @@ import (
 	"sort"
 	"strings"
 
-	"gscoop/internal/manifest"
-	"gscoop/internal/state"
-	"gscoop/internal/version"
+	"github.com/TheSlopMachine/gscoop/internal/manifest"
+	"github.com/TheSlopMachine/gscoop/internal/state"
+	"github.com/TheSlopMachine/gscoop/internal/version"
 )
 
 // Dir returns the buckets directory for a Scoop root.

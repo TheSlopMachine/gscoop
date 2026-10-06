@@ -7,9 +7,10 @@
 // depends, status, export, cache, checkup) execute via internal/commands,
 // Phase 2B mutations (install, uninstall, reset, download, import, bucket,
 // hold, unhold) and Phase 3A commands (update, cleanup, alias, home,
-// virustotal, shim) execute through their runners, and the hidden
-// maintenance commands doctor and unswap run before subcommand lookup.
-// Remaining subcommands report as unimplemented until later phases.
+// virustotal, shim) execute through their runners over wired backends,
+// misc commands (config, search, create) execute through theirs, and the
+// hidden maintenance commands doctor and unswap run before subcommand
+// lookup. Remaining subcommands report as unimplemented until later phases.
 // No emojis.
 package main
 
@@ -17,8 +18,8 @@ import (
 	"fmt"
 	"os"
 
-	"gscoop/internal/cli"
-	"gscoop/internal/commands"
+	"github.com/TheSlopMachine/gscoop/internal/cli"
+	"github.com/TheSlopMachine/gscoop/internal/commands"
 )
 
 // Version marks the snapshot build. Full version plumbing (CHANGELOG plus
@@ -55,19 +56,25 @@ func run(args []string) int {
 		fmt.Print(text)
 		return 0
 	}
+	env := commands.DefaultEnv()
+	commands.WireDefaultBackends(env)
 	if commands.ReadOnly(cmd.Name) {
-		code, _ := commands.Run(commands.DefaultEnv(), os.Stdout, cmd.Name, args[1:])
+		code, _ := commands.Run(env, os.Stdout, cmd.Name, args[1:])
 		return code
 	}
 	// Phase 3A commands (update, cleanup, alias, home, virustotal,
 	// shim) execute through the mutate runners.
-	if code, ok := commands.RunPhase3A(commands.DefaultEnv(), os.Stdout, cmd.Name, args[1:]); ok {
+	if code, ok := commands.RunPhase3A(env, os.Stdout, cmd.Name, args[1:]); ok {
 		return code
 	}
 	// Phase 2B commands (install, uninstall, reset, download, import,
-	// bucket, hold, unhold) execute through their runners. Backends that
-	// are not wired in this build report the gap with exit code 1.
-	if code, ok := commands.RunPhase2B(commands.DefaultEnv(), os.Stdout, cmd.Name, args[1:]); ok {
+	// bucket, hold, unhold) execute through their runners over the wired
+	// download and extraction backends.
+	if code, ok := commands.RunPhase2B(env, os.Stdout, cmd.Name, args[1:]); ok {
+		return code
+	}
+	// Misc commands (config, search, create) execute through their runners.
+	if code, ok := commands.RunMisc(env, os.Stdout, cmd.Name, args[1:]); ok {
 		return code
 	}
 	text, _ := cli.Help(cmd.Name)
