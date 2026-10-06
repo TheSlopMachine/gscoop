@@ -85,10 +85,10 @@ func createJunction(link, target string) error {
 		*(*uint16)(unsafe.Pointer(&buf.Data[off])) = v
 		off += 2
 	}
-	putU16(0)                            // SubstituteNameOffset
-	putU16(uint16(subLen))               // SubstituteNameLength
-	putU16(uint16(subLen + 2))           // PrintNameOffset
-	putU16(uint16(printLen))             // PrintNameLength
+	putU16(0)                  // SubstituteNameOffset
+	putU16(uint16(subLen))     // SubstituteNameLength
+	putU16(uint16(subLen + 2)) // PrintNameOffset
+	putU16(uint16(printLen))   // PrintNameLength
 	for _, w := range subWords {
 		*(*uint16)(unsafe.Pointer(&buf.Data[off])) = w
 		off += 2
