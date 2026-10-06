@@ -17,6 +17,7 @@ import (
 	"github.com/TheSlopMachine/gscoop/internal/cli"
 	"github.com/TheSlopMachine/gscoop/internal/hook"
 	"github.com/TheSlopMachine/gscoop/internal/install"
+	"github.com/TheSlopMachine/gscoop/internal/junction"
 	"github.com/TheSlopMachine/gscoop/internal/shim"
 )
 
@@ -125,6 +126,10 @@ func RunInstall(env *Env, out io.Writer, args []string) int {
 		return 1
 	}
 	global := r.Has("g") || r.Has("global")
+	// -k/--no-cache, -s/--skip-hash-check, and -u/--no-update-scoop stay
+	// accepted for CLI parity. install.Op and the Downloader seam carry no
+	// per-op cache or hash toggles, so the backend keeps its defaults until
+	// the seam gains per-op options.
 	arch := env.Arch
 	if req := r.Get("a") + r.Get("arch"); req != "" {
 		a, err := FormatArch(req)
@@ -135,16 +140,29 @@ func RunInstall(env *Env, out io.Writer, args []string) int {
 		arch = a
 	}
 	independent := r.Has("i") || r.Has("independent")
-	_ = independent
 	if mutateDownloader == nil {
 		Errorf(out, "scoop install: download backend is not wired in this build.")
 		return 1
 	}
 	apps := uniqueArgs(r.Rest)
-	resolved, err := env.ResolveDepends(apps[0], arch, out)
-	if err != nil {
-		fmt.Fprintln(out, err.Error())
-		return 1
+	var resolved []string
+	if independent {
+		resolved = apps
+	} else {
+		seen := map[string]bool{}
+		for _, app := range apps {
+			deps, err := env.ResolveDepends(app, arch, out)
+			if err != nil {
+				fmt.Fprintln(out, err.Error())
+				return 1
+			}
+			for _, dep := range deps {
+				if !seen[dep] {
+					seen[dep] = true
+					resolved = append(resolved, dep)
+				}
+			}
+		}
 	}
 	iex := &install.Executor{
 		Env:        env.mutateEnv(),
@@ -164,7 +182,6 @@ func RunInstall(env *Env, out io.Writer, args []string) int {
 			return mutateView(hit, arch, version), nil
 		},
 	}
-	_ = global
 	var tx install.Transaction
 	for _, spec := range resolved {
 		hit := env.FindManifest(spec, out)
@@ -239,27 +256,91 @@ func RunReset(env *Env, out io.Writer, args []string) int {
 		return 1
 	}
 	all := r.Has("a") || r.Has("all")
-	apps := r.Rest
-	if all {
-		apps = env.InstalledApps(false)
+	type target struct {
+		app    string
+		global bool
 	}
-	if len(apps) == 0 {
+	var targets []target
+	if all || (len(r.Rest) == 1 && r.Rest[0] == "*") {
+		for _, app := range env.InstalledApps(false) {
+			targets = append(targets, target{app, false})
+		}
+		for _, app := range env.InstalledApps(true) {
+			targets = append(targets, target{app, true})
+		}
+	} else {
+		for _, app := range uniqueArgs(r.Rest) {
+			if app == "scoop" {
+				continue
+			}
+			if env.Installed(app, boolPtr(true)) {
+				targets = append(targets, target{app, true})
+			} else {
+				targets = append(targets, target{app, false})
+			}
+		}
+	}
+	if len(targets) == 0 {
 		Errorf(out, "<app> missing")
 		printUsage(out, "reset")
 		return 1
 	}
 	code := 0
-	for _, app := range uniqueArgs(apps) {
-		ver := env.CurrentVersion(app, false)
+	for _, t := range targets {
+		ver := env.CurrentVersion(t.app, t.global)
 		if ver == "" {
-			Errorf(out, "'%s' is not installed.", app)
+			Errorf(out, "'%s' is not installed.", t.app)
 			code = 1
 			continue
 		}
-		Infof(out, "Resetting %s (%s).", app, ver)
-		_ = os.Getenv("SCOOP")
+		versionDir := env.VersionDir(t.app, ver, t.global)
+		if fi, err := os.Stat(versionDir); err != nil || !fi.IsDir() {
+			Errorf(out, "'%s (%s)' isn't installed.", t.app, ver)
+			code = 1
+			continue
+		}
+		if t.global && !install.IsAdmin() {
+			Warnf(out, "'%s' (%s) is a global app. You need admin rights to reset it. Skipping.", t.app, ver)
+			continue
+		}
+		Infof(out, "Resetting %s (%s).", t.app, ver)
+		if !env.NoJunction {
+			if _, err := junction.LinkCurrent(env.AppDir(t.app, t.global), versionDir, func(s string) {
+				fmt.Fprintln(out, s)
+			}); err != nil {
+				Errorf(out, "Could not reset '%s': %s", t.app, err.Error())
+				code = 1
+				continue
+			}
+		}
+		if err := resetShims(env, out, t.app, ver, t.global); err != nil {
+			Errorf(out, "Could not reset '%s': %s", t.app, err.Error())
+			code = 1
+			continue
+		}
 	}
 	return code
+}
+
+// resetShims recreates shims for the installed version manifest.
+func resetShims(env *Env, out io.Writer, app, ver string, global bool) error {
+	m, _ := env.InstalledManifest(app, ver, global)
+	if m == nil {
+		return fmt.Errorf("'%s (%s)' isn't installed.", app, ver)
+	}
+	arch := env.Arch
+	if info, _ := env.InstallInfoFor(app, ver, global); info != nil && info.Architecture != "" {
+		arch = info.Architecture
+	}
+	versionDir := env.VersionDir(app, ver, global)
+	vars := hook.Vars{
+		Dir: versionDir, OriginalDir: versionDir, PersistDir: env.PersistDir(app, global),
+		Version: ver, Architecture: arch, Global: global,
+		ScoopDir: env.ScoopDir, ScoopGlobal: env.GlobalDir,
+	}
+	return install.CreateShims(env.ShimDir(global), versionDir, binEntries(m.BinList(arch)), versionDir, vars, "", func(s string) {
+		fmt.Fprintln(out, s)
+	})
 }
 
 func uniqueArgs(in []string) []string {

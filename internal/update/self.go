@@ -87,11 +87,13 @@ func SwapExecutable(currentPath, newPath string) error {
 }
 
 // FastForwardClassic fast-forwards the classic scoop checkout at
-// apps/scoop/current through gitengine. Dirty trees stash through
-// the StashLikeTo ladder under AUTOSTASH_ON_CONFLICT and abort
-// otherwise. A changed repo or branch reconfigures and resets;
-// the steady path pulls with tags and force. Failures return an
-// error the caller reports as WARN classic scoop core not updated.
+// apps/scoop/current through gitengine. Tracked modifications stash
+// through the StashLikeTo ladder under AUTOSTASH_ON_CONFLICT and abort
+// otherwise; untracked files never block, matching git diff HEAD
+// --name-only (libexec/scoop-update.ps1:113). A changed repo or branch
+// reconfigures and resets; the steady path pulls with tags and force.
+// Failures return an error the caller reports as WARN classic scoop
+// core not updated.
 func FastForwardClassic(engine gitengine.GitEngine, coreDir, repo, branch string, autostash bool, workspaceDir string, emit func(string)) error {
 	if _, err := os.Stat(filepath.Join(coreDir, ".git")); err != nil {
 		return fmt.Errorf("classic scoop checkout has no git metadata")
@@ -100,7 +102,7 @@ func FastForwardClassic(engine gitengine.GitEngine, coreDir, repo, branch string
 	if err != nil {
 		return err
 	}
-	if status.Dirty {
+	if len(status.Modified) > 0 {
 		if !autostash {
 			return fmt.Errorf("uncommitted changes detected")
 		}

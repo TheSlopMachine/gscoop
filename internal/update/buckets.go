@@ -24,7 +24,8 @@ type BucketResult struct {
 }
 
 // BucketReport aggregates per-bucket outcomes plus per-bucket errors.
-// One bucket failure never stops the remaining buckets.
+// One bucket failure never stops the remaining buckets. Dirty buckets
+// without git.exe report as Skipped, not as errors.
 type BucketReport struct {
 	Buckets []BucketResult
 	Errors  map[string]error
@@ -34,12 +35,25 @@ type BucketReport struct {
 // chore commits stay out of the update log.
 var chorePattern = regexp.MustCompile(`^(chore)`)
 
+// bucketGitAvailable reports git.exe presence for the dirty-bucket
+// fallback. bucketFallbackPull runs git.exe pull -q for dirty buckets.
+// Both are vars so tests can stub availability and the fallback.
+var bucketGitAvailable = gitengine.GitAvailable
+
+var bucketFallbackPull = func(root string) error {
+	return (&gitengine.ExecGit{}).Pull(root, gitengine.PullOptions{})
+}
+
 // SyncBuckets pulls every git-backed bucket. Work fans out over a
 // small pool (classic uses throttle limit 5, libexec/scoop-update.ps1:
 // 187-189); each repository pull stays serialized through its own
-// engine call. Non-git buckets report as skipped. showLog collects
-// per-bucket commit rows for display and the diff rows feed the
-// SQLite refresh. Failures land in Errors by bucket name.
+// engine call. Non-git buckets report as skipped. Clean trees pull
+// through the engine; dirty trees pull through git.exe pull -q, which
+// tolerates unstaged edits that go-git rejects with ErrUnstagedChanges;
+// dirty trees with no git.exe report as skipped. Edits are never
+// discarded. showLog collects per-bucket commit rows for display and
+// the diff rows feed the SQLite refresh. Failures land in Errors by
+// bucket name.
 func SyncBuckets(engine gitengine.GitEngine, bucketsDir string, names []string, showLog bool, emit func(string)) BucketReport {
 	report := BucketReport{Errors: map[string]error{}}
 	if len(names) == 0 {
@@ -89,7 +103,11 @@ func SyncBuckets(engine gitengine.GitEngine, bucketsDir string, names []string, 
 	if emit != nil {
 		for _, b := range out {
 			if b.Skipped {
-				emit(fmt.Sprintf("'%s' is not a git repository. Skipped.", b.Name))
+				if b.Before != "" {
+					emit(fmt.Sprintf("'%s' has uncommitted changes and git.exe is unavailable. Skipped.", b.Name))
+				} else {
+					emit(fmt.Sprintf("'%s' is not a git repository. Skipped.", b.Name))
+				}
 			}
 		}
 		for name, err := range report.Errors {
@@ -101,7 +119,10 @@ func SyncBuckets(engine gitengine.GitEngine, bucketsDir string, names []string, 
 
 // syncOneBucket records HEAD, pulls, then collects the log and diff
 // rows used by the update log and the SQLite refresh
-// (libexec/scoop-update.ps1:197-252).
+// (libexec/scoop-update.ps1:197-252). Clean trees pull through the
+// engine. Dirty trees pull through git.exe pull -q, which tolerates
+// unstaged edits that go-git rejects; dirty trees with no git.exe skip
+// with Skipped set. Edits are never discarded.
 func syncOneBucket(engine gitengine.GitEngine, bucketsDir, name string, showLog bool) (BucketResult, error) {
 	res := BucketResult{Name: name}
 	root := filepath.Join(bucketsDir, name)
@@ -114,7 +135,16 @@ func syncOneBucket(engine gitengine.GitEngine, bucketsDir, name string, showLog 
 		return res, err
 	}
 	res.Before = before
-	if err := engine.Pull(root, gitengine.PullOptions{}); err != nil {
+	if st, serr := engine.Status(root); serr == nil && st.Dirty {
+		if !bucketGitAvailable() {
+			res.After = before
+			res.Skipped = true
+			return res, nil
+		}
+		if err := bucketFallbackPull(root); err != nil {
+			return res, err
+		}
+	} else if err := engine.Pull(root, gitengine.PullOptions{}); err != nil {
 		return res, err
 	}
 	after, err := engine.Head(root)

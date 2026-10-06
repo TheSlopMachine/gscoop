@@ -158,11 +158,11 @@ func RunUpdate(env *Env, out io.Writer, args []string) int {
 	force := r.Has("f") || r.Has("force")
 	independent := r.Has("i") || r.Has("independent")
 	useCache := !(r.Has("k") || r.Has("no-cache"))
-	checkHash := !(r.Has("s") || r.Has("skip-hash-check"))
+	// -s/--skip-hash-check stays accepted for CLI parity. install.Op and
+	// the Downloader seam carry no per-op hash toggle, so the backend keeps
+	// its default until the seam gains per-op options.
 	quiet := r.Has("q") || r.Has("quiet")
 	all := r.Has("a") || r.Has("all")
-	_ = useCache
-	_ = checkHash
 	cfg, err := loadUpdateSettings(env, out)
 	if err != nil {
 		return 1
@@ -287,7 +287,8 @@ func RunUpdate(env *Env, out io.Writer, args []string) int {
 			warm.Ops = append(warm.Ops, dep)
 		}
 	}
-	// Phase 1: parallel downloads for the whole batch.
+	// Phase 1: parallel downloads for the whole batch. install.Op carries
+	// no per-op cache or hash toggles, so the backend keeps its defaults.
 	if mutateDownloader != nil && len(warm.Ops) > 0 {
 		warmEx := &install.Executor{Env: local.mutateEnv(), Log: install.Logger{Out: out, Err: out}, Downloader: mutateDownloader}
 		_ = warmEx.DownloadAll(context.Background(), warm, cfg.maxDownloads)
@@ -711,6 +712,8 @@ func updateOneApp(env *Env, out io.Writer, cfg *updateSettings, plan *updatePlan
 		},
 	}
 	if independent {
+		// install.Op carries no per-op cache or hash toggles; the reinstall
+		// inherits backend defaults.
 		tx := install.Transaction{Ops: []install.Op{{App: t.App, Version: version, Architecture: plan.arch, Global: t.Global, Bucket: plan.bucket, URL: plan.url, ManifestRaw: plan.raw}}}
 		return iex.Install(context.Background(), tx)
 	}

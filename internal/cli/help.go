@@ -445,6 +445,21 @@ func Help(name string) (string, bool) {
 	return out, true
 }
 
+// RunHelp routes the "scoop help" subcommand (libexec/scoop-help.ps1:30-42):
+// no args prints the top-level listing, a known command prints its help,
+// and an unknown command reports "ERROR scoop help: no such command '<cmd>'"
+// with exit 1.
+func RunHelp(args []string) (string, int) {
+	if len(args) == 0 {
+		return TopHelp(), 0
+	}
+	text, ok := Help(args[0])
+	if !ok {
+		return "ERROR scoop help: no such command '" + args[0] + "'\n", 1
+	}
+	return text, 0
+}
+
 // TopHelp renders the "scoop help" listing: the fixed preamble plus one
 // "<command> - <summary>" line per command in alphabetical order.
 func TopHelp() string {

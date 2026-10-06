@@ -101,8 +101,18 @@ func (e *Env) isDeprecated(app, bucket string) bool {
 	return found
 }
 
+// totalInstalled counts installed apps across both scopes before query
+// filtering, mirroring the scoop-list.ps1:19 empty check.
+func totalInstalled(env *Env) int {
+	return len(env.InstalledApps(false)) + len(env.InstalledApps(true))
+}
+
 // RunList mirrors libexec/scoop-list.ps1. The query is a regex matched
-// against app names. No installed apps warns with exit 1.
+// against app names. The "Installed apps[:]"/"Installed apps matching"
+// preamble matches scoop-list.ps1:24 verbatim and is not invented. An empty
+// install warns with exit 1 even when a query is supplied (classic checks
+// the app list before filtering); a query with no hits over a non-empty
+// install prints the preamble plus the header-only table with exit 0.
 func RunList(env *Env, out io.Writer, args []string) int {
 	var query string
 	if len(args) > 0 {
@@ -113,7 +123,7 @@ func RunList(env *Env, out io.Writer, args []string) int {
 		Errorf(out, "%s", err.Error())
 		return 1
 	}
-	if len(rows) == 0 && query == "" {
+	if len(rows) == 0 && totalInstalled(env) == 0 {
 		Warnf(out, "There aren't any apps installed.")
 		return 1
 	}

@@ -3,6 +3,7 @@ package commands
 import (
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -11,8 +12,8 @@ import (
 
 // RunCache mirrors libexec/scoop-cache.ps1 for the read-only paths: bare
 // `scoop cache` and `scoop cache show [app]` list cache entries as
-// Name/Version/Length rows plus a Total line. Removal belongs to the
-// mutation engine and reports as unimplemented in Phase 1C.
+// Name/Version/Length rows plus a Total line. Removal deletes matching
+// `<app>#*` files plus `<app>.txt` sidecars.
 func RunCache(env *Env, out io.Writer, args []string) int {
 	cmd := ""
 	var rest []string
@@ -31,11 +32,59 @@ func RunCache(env *Env, out io.Writer, args []string) int {
 			printUsage(out, "cache")
 			return 1
 		}
-		Errorf(out, "scoop cache rm is not implemented in Phase 1C.")
-		return 1
+		return cacheRemove(env, out, rest)
 	default:
 		return cacheShow(env, out, args)
 	}
+}
+
+// cacheRemove mirrors cacheremove in libexec/scoop-cache.ps1: `-a/--all`
+// or `*` clears the cache directory, otherwise entries matching
+// `^(app1|app2)#` are deleted with their `<app>.txt` sidecars.
+func cacheRemove(env *Env, out io.Writer, apps []string) int {
+	clearAll := false
+	for _, a := range apps {
+		if a == "*" || a == "-a" || a == "--all" {
+			clearAll = true
+			break
+		}
+	}
+	entries, err := os.ReadDir(env.CacheDir)
+	if err != nil {
+		entries = nil
+	}
+	var re *regexp.Regexp
+	if !clearAll {
+		re, err = regexp.Compile("^(" + strings.Join(apps, "|") + ")#")
+		if err != nil {
+			Errorf(out, "%s", err.Error())
+			return 1
+		}
+	}
+	var total int64
+	var count int
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if !clearAll && !re.MatchString(entry.Name()) {
+			continue
+		}
+		var length int64
+		if fi, err := entry.Info(); err == nil {
+			length = fi.Size()
+		}
+		total += length
+		count++
+		Successf(out, "Removing %s...", entry.Name())
+		_ = os.Remove(filepath.Join(env.CacheDir, entry.Name()))
+		parts := strings.SplitN(entry.Name(), "#", 2)
+		if len(parts) > 0 && parts[0] != "" {
+			_ = os.Remove(filepath.Join(env.CacheDir, parts[0]+".txt"))
+		}
+	}
+	Successf(out, "Deleted: %d %s, %s", count, pluralize(count, "file", "files"), filesize(total))
+	return 0
 }
 
 // cacheShow mirrors cacheshow in lib/cache.ps1: entries matching

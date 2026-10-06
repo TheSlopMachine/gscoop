@@ -131,13 +131,16 @@ func (e *Env) statusManifest(app string, info *InstallInfo) (*Manifest, string) 
 
 // RunStatus mirrors libexec/scoop-status.ps1: one row per installed app
 // that is outdated, failed, deprecated, removed, or missing dependencies.
-// Scoop-core and bucket freshness checks need the gitengine network seam
-// and are skipped in Phase 1C, so -l/--local changes nothing yet. The
-// command always exits 0.
+// Remote Scoop and bucket freshness checks need the gitengine network seam,
+// so every run stays local-only. The command always exits 0.
 func RunStatus(env *Env, out io.Writer, args []string) int {
 	// Only the first argument selects local-only mode
 	// (libexec/scoop-status.ps1:16).
-	_ = len(args) > 0 && (args[0] == "-l" || args[0] == "--local")
+	local := len(args) > 0 && (args[0] == "-l" || args[0] == "--local")
+	if !local {
+		// Without the network seam there are no remote freshness checks to
+		// run; fall through to the local-only rows below.
+	}
 	var rows [][]string
 	for _, global := range []bool{true, false} {
 		for _, app := range env.InstalledApps(global) {

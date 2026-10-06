@@ -9,6 +9,14 @@ import (
 	"strings"
 )
 
+// GitAvailable reports whether git.exe resolves from PATH, following
+// the exec.LookPath pattern used for external helpers. Bucket sync
+// uses it to select the git.exe pull fallback for dirty trees.
+func GitAvailable() bool {
+	_, err := exec.LookPath("git")
+	return err == nil
+}
+
 // ExecGit shells to git.exe. It covers private-bucket credential
 // helpers and any go-git gap behind USE_EXTERNAL_GIT.
 type ExecGit struct {

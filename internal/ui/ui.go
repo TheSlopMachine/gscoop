@@ -36,7 +36,10 @@ const (
 )
 
 // Logger writes diagnostics. Error and Warn go to Err; Info, Debug, and
-// Success go to Out. Color decorates whole lines without changing text.
+// Success go to Out. Classic uses Write-Host for every severity (a single
+// console stream); the split here preserves the exact prefix text while
+// routing severities to conventional streams. Color decorates whole lines
+// without changing text.
 type Logger struct {
 	// Out receives info, debug, and success lines. Defaults to stdout.
 	Out io.Writer
@@ -233,7 +236,8 @@ func (p *Progress) Done() {
 }
 
 // FormatSize renders byte counts like filesize (lib/core.ps1:346-363):
-// one decimal GB/MB/KB above each power of two, else integer bytes.
+// one decimal GB/MB/KB above each power of two with "{0:n1}" thousands
+// grouping (for example "1,024.0 KB"), else integer bytes.
 func FormatSize(length int64) string {
 	const (
 		gb = int64(1) << 30
@@ -242,12 +246,48 @@ func FormatSize(length int64) string {
 	)
 	switch {
 	case length > gb:
-		return fmt.Sprintf("%.1f GB", float64(length)/float64(gb))
+		return formatGroupedFloat(float64(length)/float64(gb)) + " GB"
 	case length > mb:
-		return fmt.Sprintf("%.1f MB", float64(length)/float64(mb))
+		return formatGroupedFloat(float64(length)/float64(mb)) + " MB"
 	case length > kb:
-		return fmt.Sprintf("%.1f KB", float64(length)/float64(kb))
+		return formatGroupedFloat(float64(length)/float64(kb)) + " KB"
 	default:
 		return fmt.Sprintf("%d B", length)
 	}
+}
+
+// formatGroupedFloat renders one fractional digit with comma grouping on the
+// integer part, matching PowerShell "{0:n1}".
+func formatGroupedFloat(value float64) string {
+	s := fmt.Sprintf("%.1f", value)
+	neg := ""
+	if strings.HasPrefix(s, "-") {
+		neg = "-"
+		s = s[1:]
+	}
+	intPart := s
+	frac := ""
+	if i := strings.IndexByte(s, '.'); i >= 0 {
+		intPart = s[:i]
+		frac = s[i:]
+	}
+	return neg + groupDigits(intPart) + frac
+}
+
+// groupDigits inserts commas every three digits from the right.
+func groupDigits(digits string) string {
+	if len(digits) <= 3 {
+		return digits
+	}
+	var b strings.Builder
+	first := len(digits) % 3
+	if first == 0 {
+		first = 3
+	}
+	b.WriteString(digits[:first])
+	for i := first; i < len(digits); i += 3 {
+		b.WriteByte(',')
+		b.WriteString(digits[i : i+3])
+	}
+	return b.String()
 }

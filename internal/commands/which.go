@@ -10,7 +10,9 @@ import (
 )
 
 // RunWhich mirrors libexec/scoop-which.ps1: it resolves a command to the
-// shim target or executable path. Unknown commands warn with exit 2.
+// shim target or executable path. A missed lookup warns
+// "'<command>' not found, not a scoop shim, or a broken shim." with exit 2
+// (scoop-which.ps1:15-16, spec/cli-surface.md:118).
 func RunWhich(env *Env, out io.Writer, args []string) int {
 	if len(args) == 0 || args[0] == "" {
 		Errorf(out, "<command> missing")

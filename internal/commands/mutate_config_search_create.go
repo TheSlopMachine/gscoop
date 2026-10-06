@@ -115,8 +115,8 @@ func RunConfig(env *Env, out io.Writer, args []string) int {
 // RunSearch mirrors the local-bucket path of scoop-search.ps1: buckets
 // scan in local order, name matches win over bin matches, and rows print
 // as Name/Version/Source/Binaries. An empty query lists every manifest.
-// Remote search over uninstalled known buckets is not wired; empty local
-// results fail closed.
+// Remote search over uninstalled known buckets stays unwired by design: no
+// network fallback runs here, so empty local results fail closed.
 func RunSearch(env *Env, out io.Writer, args []string) int {
 	query := strings.Join(args, " ")
 	results, literal, err := search.SearchLocal(env.ScoopDir, env.ListBucketNames(), query)
