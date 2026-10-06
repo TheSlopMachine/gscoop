@@ -10,9 +10,11 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/TheSlopMachine/gscoop/internal/cli"
 	"github.com/TheSlopMachine/gscoop/internal/hook"
@@ -47,15 +49,29 @@ func (e *Env) mutateEnv() install.Env {
 }
 
 // mutateView adapts a resolved manifest to install ManifestView.
+// Architecture-specific sections override top-level values, matching
+// arch_specific resolution in lib/manifest.ps1.
 func mutateView(hit *ManifestHit, arch, version string) *install.ManifestView {
 	if hit == nil || hit.Manifest == nil {
 		return &install.ManifestView{Version: version}
 	}
 	m := hit.Manifest
 	mv := &install.ManifestView{
-		Version:     version,
-		ManifestRaw: hit.Raw,
-		Depends:     m.DependsList(),
+		Version:       version,
+		ManifestRaw:   hit.Raw,
+		Depends:       m.DependsList(),
+		PreInstall:    hook.JoinScript(mutateRawProp(hit.Raw, arch, "pre_install")),
+		PostInstall:   hook.JoinScript(mutateRawProp(hit.Raw, arch, "post_install")),
+		PreUninstall:  hook.JoinScript(mutateRawProp(hit.Raw, arch, "pre_uninstall")),
+		PostUninstall: hook.JoinScript(mutateRawProp(hit.Raw, arch, "post_uninstall")),
+		Installer:     mutateInstallerView(mutateRawProp(hit.Raw, arch, "installer")),
+		Uninstaller:   mutateInstallerView(mutateRawProp(hit.Raw, arch, "uninstaller")),
+		EnvAddPath:    anyToStrings(m.EnvAddPathFor(arch)),
+		EnvSet:        stringMap(m.EnvSetFor(arch)),
+		Persist:       mutatePersistViews(mutateRawProp(hit.Raw, arch, "persist")),
+		PSModuleName:  mutatePSModuleName(mutateRawProp(hit.Raw, arch, "psmodule")),
+		Notes:         strings.Join(anyToStrings(m.Notes), "\n"),
+		Suggest:       mutateSuggest(m.Suggest),
 	}
 	for _, b := range binEntries(m.BinList(arch)) {
 		mv.Bins = append(mv.Bins, b)
@@ -64,6 +80,123 @@ func mutateView(hit *ManifestHit, arch, version string) *install.ManifestView {
 		mv.Shortcuts = append(mv.Shortcuts, s)
 	}
 	return mv
+}
+
+// mutateRawProp returns the arch-specific value for prop, falling back
+// to the top-level value. Invalid input returns nil.
+func mutateRawProp(raw []byte, arch, prop string) any {
+	if len(raw) == 0 {
+		return nil
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil
+	}
+	if arch != "" {
+		if archRoot, ok := doc["architecture"].(map[string]any); ok {
+			if section, ok := archRoot[arch].(map[string]any); ok {
+				if v, ok := section[prop]; ok && v != nil {
+					return v
+				}
+			}
+		}
+	}
+	return doc[prop]
+}
+
+// mutateInstallerView converts a raw installer/uninstaller section to
+// an install view. Args accept string or string list; script accepts
+// string or string list.
+func mutateInstallerView(v any) install.InstallerView {
+	obj, ok := v.(map[string]any)
+	if !ok {
+		return install.InstallerView{}
+	}
+	var iv install.InstallerView
+	if file, ok := obj["file"].(string); ok {
+		iv.File = file
+	}
+	switch args := obj["args"].(type) {
+	case string:
+		iv.Args = []string{args}
+	case []any:
+		for _, item := range args {
+			if s, ok := item.(string); ok {
+				iv.Args = append(iv.Args, s)
+			}
+		}
+	}
+	iv.Script = hook.JoinScript(obj["script"])
+	if keep, ok := obj["keep"].(bool); ok {
+		iv.Keep = keep
+	}
+	return iv
+}
+
+// mutatePersistViews converts a raw persist section to install views.
+// Strings map to same-name pairs; pairs pass through.
+func mutatePersistViews(v any) []install.PersistView {
+	var items []any
+	switch t := v.(type) {
+	case nil:
+		return nil
+	case string:
+		items = []any{t}
+	case []any:
+		items = t
+	default:
+		return nil
+	}
+	var out []install.PersistView
+	for _, item := range items {
+		switch t := item.(type) {
+		case string:
+			out = append(out, install.PersistView{Source: t, Target: t})
+		case []any:
+			if len(t) == 2 {
+				src, ok1 := t[0].(string)
+				dst, ok2 := t[1].(string)
+				if ok1 && ok2 {
+					out = append(out, install.PersistView{Source: src, Target: dst})
+				}
+			} else if len(t) == 1 {
+				if s, ok := t[0].(string); ok {
+					out = append(out, install.PersistView{Source: s, Target: s})
+				}
+			}
+		}
+	}
+	return out
+}
+
+// mutatePSModuleName reads the psmodule name from string or object form.
+func mutatePSModuleName(v any) string {
+	switch t := v.(type) {
+	case string:
+		return t
+	case map[string]any:
+		if name, ok := t["name"].(string); ok {
+			return name
+		}
+	}
+	return ""
+}
+
+// mutateSuggest normalizes suggest values to string lists.
+func mutateSuggest(raw map[string]any) map[string][]string {
+	if len(raw) == 0 {
+		return nil
+	}
+	out := make(map[string][]string, len(raw))
+	for k, v := range raw {
+		if list := anyToStrings(v); len(list) > 0 {
+			out[k] = list
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func binEntries(list []any) []shim.Entry {
@@ -220,8 +353,8 @@ func RunUninstall(env *Env, out io.Writer, args []string) int {
 		Hooks: &hook.Runner{Out: out, Err: out},
 		LookupManifest: func(app, arch string) (*install.ManifestView, error) {
 			ver := env.CurrentVersion(app, global)
-			m, _ := env.InstalledManifest(app, ver, global)
-			hit := &ManifestHit{Name: app, Manifest: m}
+			m, raw := env.InstalledManifest(app, ver, global)
+			hit := &ManifestHit{Name: app, Manifest: m, Raw: raw}
 			return mutateView(hit, env.Arch, ver), nil
 		},
 	}

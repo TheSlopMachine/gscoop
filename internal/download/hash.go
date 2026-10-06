@@ -132,7 +132,7 @@ func CheckFileHash(path, manifestHash, app string) (ok bool, message string) {
 		}
 		return false, msg.String()
 	}
-	return true, ""
+	return true, fmt.Sprintf("Checking hash of %s... OK.", Base(path))
 }
 
 // HashForURL aligns a manifest hash list with its URL list by index

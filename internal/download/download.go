@@ -278,6 +278,8 @@ func (d *Downloader) Download(ctx context.Context, app, version string, urls, ha
 			}
 			results[i].Err = &HashError{URL: results[i].Request.URL, Detail: msg}
 			continue
+		} else if msg != "" {
+			d.infof("%s", msg)
 		}
 		results[i].Verified = results[i].Request.Hash != ""
 	}

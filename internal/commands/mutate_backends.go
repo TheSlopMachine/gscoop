@@ -17,6 +17,7 @@ import (
 	"github.com/TheSlopMachine/gscoop/internal/download"
 	"github.com/TheSlopMachine/gscoop/internal/extract"
 	"github.com/TheSlopMachine/gscoop/internal/install"
+	"github.com/TheSlopMachine/gscoop/internal/ui"
 )
 
 // WireDefaultBackends wires the real download and extraction backends into
@@ -44,7 +45,7 @@ func (b *downloadAdapter) Download(ctx context.Context, op install.Op, dir strin
 	if err != nil {
 		return nil, err
 	}
-	opts := download.OptionsFromStore(store, b.cacheDir, dir, nil, nil)
+	opts := download.OptionsFromStore(store, b.cacheDir, dir, &ui.Logger{}, nil)
 	d, err := download.New(opts)
 	if err != nil {
 		return nil, err

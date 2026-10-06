@@ -125,3 +125,58 @@ func TestSubstituteLongestFirst(t *testing.T) {
 		t.Fatalf("sub = %q", got)
 	}
 }
+
+func TestShimNameDerivation(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{`bin\cmake.exe`, "cmake"},
+		{"bin/cmake.exe", "cmake"},
+		{"cmake.exe", "cmake"},
+		{`BIN\CMAKE.EXE`, "cmake"},
+		{`C:\apps\tool\Run.ps1`, "run"},
+		{"nested/dir/tool.BAT", "tool"},
+		{`bin\tool`, "tool"},
+		{"foo.bar.exe", "foo.bar"},
+		{"python3", "python3"},
+		{"Git", "git"},
+	}
+	for _, tc := range cases {
+		if got := ShimName(tc.in); got != tc.want {
+			t.Errorf("ShimName(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+		if got := ShimNameForTarget(tc.in); got != tc.want {
+			t.Errorf("ShimNameForTarget(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestParseEntryNames(t *testing.T) {
+	e, ok := ParseEntry(`bin\cmake.exe`)
+	if !ok || e.Target != `bin\cmake.exe` || e.Name != "cmake" {
+		t.Fatalf("string entry = %+v %v", e, ok)
+	}
+	e, ok = ParseEntry([]string{"python.exe", "python3"})
+	if !ok || e.Target != "python.exe" || e.Name != "python3" {
+		t.Fatalf("alias entry = %+v %v", e, ok)
+	}
+	if got := ShimName(e.Name); got != "python3" {
+		t.Fatalf("alias stem = %q", got)
+	}
+	e, ok = ParseEntry([]any{"bin/cmake.exe"})
+	if !ok || e.Name != "cmake" {
+		t.Fatalf("single array entry = %+v %v", e, ok)
+	}
+	e, ok = ParseEntry([]any{"bin/app.exe", "alias", "--flag"})
+	if !ok || e.Name != "alias" || e.Args != "--flag" {
+		t.Fatalf("full array entry = %+v %v", e, ok)
+	}
+}
+
+func TestResolvedNamePreserved(t *testing.T) {
+	dir := t.TempDir()
+	if err := WriteTextShim(dir, "foo.bar", `C:\apps\foo\bar.exe`, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "foo.bar.shim")); err != nil {
+		t.Fatalf("multi-dot stem stripped: %v", err)
+	}
+}

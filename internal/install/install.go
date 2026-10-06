@@ -336,6 +336,7 @@ func (x *Executor) installOne(ctx context.Context, op Op) error {
 				_ = os.RemoveAll(staging)
 				return err
 			}
+			fmt.Fprintf(log.out(), "Extracting %s... Done.\n", f)
 		}
 	}
 	vars := hook.Vars{

@@ -133,9 +133,24 @@ func Substitute(arg, dir, originalDir, persistDir string) string {
 	return out
 }
 
-// ShimName lowercases the alias, mirroring $name.tolower()
-// (lib/core.ps1:955).
-func ShimName(name string) string {
+// ShimName derives the shim file stem from a manifest bin target,
+// mirroring strip_ext(fname(...)) plus $name.tolower()
+// (lib/core.ps1:618-619, lib/core.ps1:953-955): base leaf, strip single
+// trailing extension per `\.[^\.]*$`, lowercase.
+func ShimName(target string) string {
+	return strings.ToLower(stripExt(base(target)))
+}
+
+// ShimNameForTarget is the explicit target-derived form of ShimName.
+// ShimName is kept for existing callers.
+func ShimNameForTarget(target string) string {
+	return ShimName(target)
+}
+
+// stem lowercases an already-resolved shim name (explicit alias or
+// derived stem), mirroring $($name.tolower()) (lib/core.ps1:955).
+// Unlike ShimName it strips nothing, so multi-dot stems survive.
+func stem(name string) string {
 	return strings.ToLower(name)
 }
 
@@ -151,7 +166,7 @@ func WriteExe(shimDir, name, target, variant string) (string, error) {
 	if err := os.MkdirAll(shimDir, 0o755); err != nil {
 		return "", err
 	}
-	exe := filepath.Join(shimDir, ShimName(name)+".exe")
+	exe := filepath.Join(shimDir, stem(name)+".exe")
 	if err := os.WriteFile(exe, payload, 0o755); err != nil {
 		return "", err
 	}
@@ -199,7 +214,7 @@ func WriteTextShim(shimDir, name, resolvedPath, arg string) error {
 	if arg != "" {
 		fmt.Fprintf(&b, "args = %s\r\n", arg)
 	}
-	return writeLines(filepath.Join(shimDir, ShimName(name)+".shim"), b.String())
+	return writeLines(filepath.Join(shimDir, stem(name)+".shim"), b.String())
 }
 
 // Wrappers writes the .cmd plus extensionless POSIX wrapper for
@@ -210,47 +225,47 @@ func Wrappers(shimDir, name, resolvedPath, arg string) error {
 	switch {
 	case strings.HasSuffix(lowered, ".bat") || strings.HasSuffix(lowered, ".cmd"):
 		cmd := "@rem " + resolvedPath + "\r\n@\"" + resolvedPath + "\" " + arg + " %*\r\n"
-		if err := writeLines(filepath.Join(shimDir, ShimName(name)+".cmd"), cmd); err != nil {
+		if err := writeLines(filepath.Join(shimDir, stem(name)+".cmd"), cmd); err != nil {
 			return err
 		}
 		sh := "#!/bin/sh\n# " + resolvedPath + "\nMSYS2_ARG_CONV_EXCL=/C cmd.exe /C \"" + resolvedPath + "\" " + arg + " \"$@\""
-		return writeNoNewline(filepath.Join(shimDir, ShimName(name)), sh)
+		return writeNoNewline(filepath.Join(shimDir, stem(name)), sh)
 	case strings.HasSuffix(lowered, ".ps1"):
 		ps1 := ps1Wrapper(resolvedPath, arg)
-		if err := writeLines(filepath.Join(shimDir, ShimName(name)+".ps1"), ps1); err != nil {
+		if err := writeLines(filepath.Join(shimDir, stem(name)+".ps1"), ps1); err != nil {
 			return err
 		}
 		cmd := "@rem " + resolvedPath + "\r\n@echo off\r\nwhere /q pwsh.exe\r\nif %errorlevel% equ 0 (\r\n    pwsh -noprofile -ex unrestricted -file \"" + resolvedPath + "\" " + arg + " %*\r\n) else (\r\n    powershell -noprofile -ex unrestricted -file \"" + resolvedPath + "\" " + arg + " %*\r\n)\r\n"
-		if err := writeLines(filepath.Join(shimDir, ShimName(name)+".cmd"), cmd); err != nil {
+		if err := writeLines(filepath.Join(shimDir, stem(name)+".cmd"), cmd); err != nil {
 			return err
 		}
 		sh := "#!/bin/sh\n# " + resolvedPath + "\nif command -v pwsh.exe > /dev/null 2>&1; then\n    pwsh.exe -noprofile -ex unrestricted -file \"" + resolvedPath + "\" " + arg + " \"$@\"\nelse\n    powershell.exe -noprofile -ex unrestricted -file \"" + resolvedPath + "\" " + arg + " \"$@\"\nfi"
-		return writeNoNewline(filepath.Join(shimDir, ShimName(name)), sh)
+		return writeNoNewline(filepath.Join(shimDir, stem(name)), sh)
 	case strings.HasSuffix(lowered, ".jar"):
 		cmd := "@rem " + resolvedPath + "\r\n@pushd " + filepath.Dir(resolvedPath) + "\r\n@java -jar \"" + resolvedPath + "\" " + arg + " %*\r\n@popd\r\n"
-		if err := writeLines(filepath.Join(shimDir, ShimName(name)+".cmd"), cmd); err != nil {
+		if err := writeLines(filepath.Join(shimDir, stem(name)+".cmd"), cmd); err != nil {
 			return err
 		}
 		sh := "#!/bin/sh\n# " + resolvedPath + "\njava.exe -jar \"" + resolvedPath + "\" " + arg + " \"$@\""
-		return writeNoNewline(filepath.Join(shimDir, ShimName(name)), sh)
+		return writeNoNewline(filepath.Join(shimDir, stem(name)), sh)
 	case strings.HasSuffix(lowered, ".py"):
 		cmd := "@rem " + resolvedPath + "\r\n@python \"" + resolvedPath + "\" " + arg + " %*\r\n"
-		if err := writeLines(filepath.Join(shimDir, ShimName(name)+".cmd"), cmd); err != nil {
+		if err := writeLines(filepath.Join(shimDir, stem(name)+".cmd"), cmd); err != nil {
 			return err
 		}
 		sh := "#!/bin/sh\n# " + resolvedPath + "\npython.exe \"" + resolvedPath + "\" " + arg + " \"$@\""
-		return writeNoNewline(filepath.Join(shimDir, ShimName(name)), sh)
+		return writeNoNewline(filepath.Join(shimDir, stem(name)), sh)
 	default:
 		quoted := ""
 		if arg != "" {
 			quoted = `"` + arg + `"`
 		}
 		cmd := "@rem " + resolvedPath + "\r\n@echo off\r\n" + "bash -c \"command -v wslpath >/dev/null\"\r\nif %errorlevel% equ 0 (\r\n  bash \"$(wslpath -u '" + resolvedPath + "')\" " + quoted + " %*\r\n) else (\r\n  set args=" + quoted + " %*\r\n  setlocal enabledelayedexpansion\r\n  if not \"!args!\"==\"\" set args=!args:\"=\"\"!\r\n  bash -c \"$(cygpath -u '" + resolvedPath + "') !args!\"\r\n)\r\n"
-		if err := writeLines(filepath.Join(shimDir, ShimName(name)+".cmd"), cmd); err != nil {
+		if err := writeLines(filepath.Join(shimDir, stem(name)+".cmd"), cmd); err != nil {
 			return err
 		}
 		sh := "#!/bin/sh\n# " + resolvedPath + "\n\"" + "$(wslpath -u '" + resolvedPath + "')" + "\" " + arg + " \"$@\""
-		return writeNoNewline(filepath.Join(shimDir, ShimName(name)), sh)
+		return writeNoNewline(filepath.Join(shimDir, stem(name)), sh)
 	}
 }
 

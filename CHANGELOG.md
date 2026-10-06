@@ -35,6 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scoop help <command>` routes through help output; `scoop --version`
   reports the newest `CHANGELOG.md` version; `DEBUG` gating matches
   classic case-insensitive checks; size output uses thousands grouping.
+- `scoop update` runs the full install pipeline: pre/post-install hooks,
+  installer scripts, environment updates, persist, and notes replay from
+  the manifest; shim names match classic leaf plus extension-strip rules;
+  download, hash, and extraction stages report progress. Shim failures
+  remain fatal.
 
 ## [0.1.0] - pre-release, no tag published yet
 
