@@ -1,0 +1,15 @@
+Usage: scoop update <app> [options]
+
+'scoop update' updates Scoop to the latest version.
+'scoop update <app>' installs a new version of that app, if there is one.
+
+You can use '*' in place of <app> to update all apps.
+
+Options:
+  -f, --force            Force update even when there isn't a newer version
+  -g, --global           Update a globally installed app
+  -i, --independent      Don't install dependencies automatically
+  -k, --no-cache         Don't use the download cache
+  -s, --skip-hash-check  Skip hash validation (use with caution!)
+  -q, --quiet            Hide extraneous messages
+  -a, --all              Update all apps (alternative to '*')

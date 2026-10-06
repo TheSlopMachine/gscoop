@@ -1,0 +1,22 @@
+Name: git
+Description: Distributed version control
+Version: 1.0.0 (Update to 2.0.0 available)
+Source: main
+Website: https://git-scm.com
+License: GPL-2.0-only (https://spdx.org/licenses/GPL-2.0-only.html)
+Dependencies: dep
+Updated at: <WHEN>
+Manifest: <ROOT>/scoop/buckets/main/bucket/git.json
+Installed: <ROOT>/scoop/apps/git/1.0.0
+Installed size: Current version:  20 B
+Old versions:     101 B
+Cached downloads: 10 B
+Total:            131 B
+Binaries: bin/git.exe | gitk.exe
+Shortcuts: Git
+Environment: GIT_DIR = <ROOT>/scoop/apps/git/current/.git
+Path Added: <ROOT>/scoop/apps/git/current/bin
+<ROOT>/scoop/apps/git/current
+Suggestions: helper
+Notes: See <ROOT>/scoop/apps/git/current for details.
+

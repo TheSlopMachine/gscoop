@@ -1,0 +1,9 @@
+{
+    "version": "1.0.0",
+    "description": "Synthetic pinned fixture at 1.0.0",
+    "homepage": "https://example.com/pinned",
+    "license": "MIT",
+    "url": "https://example.com/pinned-1.0.0.zip",
+    "hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "bin": "pinned.exe"
+}

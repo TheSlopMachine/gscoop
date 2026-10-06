@@ -1,0 +1,25 @@
+Usage: scoop alias <subcommand> [options] [<args>]
+
+Available subcommands: add, rm, list.
+
+Aliases are custom Scoop subcommands that can be created to make common tasks easier.
+
+To add an alias:
+
+    scoop alias add <name> <command> [<description>]
+
+e.g.,
+
+    scoop alias add rm 'scoop uninstall $args[0]' 'Uninstall an app'
+    scoop alias add upgrade 'scoop update *' 'Update all apps, just like "brew" or "apt"'
+
+To remove an alias:
+
+    scoop alias rm <name>
+
+To list all aliases:
+
+    scoop alias list [-v|--verbose]
+
+Options:
+  -v, --verbose  Show alias description and table headers (works only for "list")

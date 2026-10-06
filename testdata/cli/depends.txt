@@ -1,0 +1,1 @@
+Usage: scoop depends <app>

@@ -8,6 +8,9 @@
 *.so
 *.dylib
 
+# Exception: gscoop embeds upstream shim payloads as data assets
+!internal/shim/assets/*.exe
+
 # Test binary, built with `go test -c`
 *.test
 

@@ -1,0 +1,4 @@
+Usage: scoop info <app> [options]
+
+Options:
+  -v, --verbose   Show full paths and URLs

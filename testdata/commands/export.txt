@@ -1,0 +1,66 @@
+{
+    "buckets": {
+        "Name": "main",
+        "Source": "<ROOT>/scoop/buckets/main",
+        "Updated": "<WHEN>",
+        "Manifests": 5
+    },
+    "apps": [
+        {
+            "Name": "broken",
+            "Version": "",
+            "Updated": "<WHEN>",
+            "Info": "Install failed"
+        },
+        {
+            "Name": "dep",
+            "Version": "1.0.0",
+            "Source": "main",
+            "Updated": "<WHEN>",
+            "Info": ""
+        },
+        {
+            "Name": "git",
+            "Version": "1.0.0",
+            "Source": "main",
+            "Updated": "<WHEN>",
+            "Info": ""
+        },
+        {
+            "Name": "leg",
+            "Version": "1.0.0",
+            "Source": "main",
+            "Updated": "<WHEN>",
+            "Info": "Deprecated package"
+        },
+        {
+            "Name": "lonely",
+            "Version": "1.0.0",
+            "Source": "main",
+            "Updated": "<WHEN>",
+            "Info": ""
+        },
+        {
+            "Name": "oldapp",
+            "Version": "1.0.0",
+            "Source": "main",
+            "Updated": "<WHEN>",
+            "Info": ""
+        },
+        {
+            "Name": "tool",
+            "Version": "3.1.0",
+            "Source": "main",
+            "Updated": "<WHEN>",
+            "Info": "Held package"
+        },
+        {
+            "Name": "gtool",
+            "Version": "1.0.0",
+            "Source": "main",
+            "Updated": "<WHEN>",
+            "Info": "Global install"
+        }
+    ]
+}
+

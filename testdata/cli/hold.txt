@@ -1,0 +1,10 @@
+Usage: scoop hold <apps>
+
+To hold a user-scoped app:
+     scoop hold <app>
+
+To hold a global app:
+     scoop hold -g <app>
+
+Options:
+  -g, --global  Hold globally installed apps

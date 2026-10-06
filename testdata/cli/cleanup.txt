@@ -1,0 +1,11 @@
+Usage: scoop cleanup <app> [options]
+
+'scoop cleanup' cleans Scoop apps by removing old versions.
+'scoop cleanup <app>' cleans up the old versions of that app if said versions exist.
+
+You can use '*' in place of <app> or `-a`/`--all` switch to cleanup all apps.
+
+Options:
+  -a, --all          Cleanup all apps (alternative to '*')
+  -g, --global       Cleanup a globally installed app
+  -k, --cache        Remove outdated download cache

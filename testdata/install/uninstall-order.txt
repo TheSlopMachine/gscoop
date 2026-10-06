@@ -1,0 +1,14 @@
+pre_uninstall hook
+running-process guard (IGNORE_RUNNING_PROCESSES escape)
+uninstaller file plus args or script with keep flag
+rm_shims per bin entry
+rm_startmenu_shortcuts per shortcuts entry
+unlink_current to reference dir
+uninstall_psmodule
+env_rm_path plus env_rm
+unlink_persist_data then version dir removal
+post_uninstall hook
+older versions removal
+current link removal
+empty appdir removal
+purge persist dir only with -p

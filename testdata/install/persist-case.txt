@@ -1,0 +1,8 @@
+case: target exists, source exists
+source renames to source.original, link points at target
+case: target missing, source exists
+source moves to target, link points at target
+case: neither exists
+target creates as directory, link points at target
+dir target links as junction, file target links as hard link
+global persist root grants BuiltinUsers write when admin

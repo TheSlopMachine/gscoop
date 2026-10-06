@@ -1,0 +1,47 @@
+{
+  "filenames": [
+    {"url": "https://example.com/files/app-1.0.zip", "want": "app-1.0.zip"},
+    {"url": "https://example.com/a.zip?x=1", "want": "a.zip"},
+    {"url": "https://example.com/dl?file=app.zip", "want": "dl"},
+    {"url": "https://example.com/get.zip#/dl.7z", "want": "dl.7z"},
+    {"url": "https://downloads.sourceforge.net/project/sevenzip/7-Zip/24.09/7z2409-x64.exe", "want": "7z2409-x64.exe"}
+  ],
+  "remote": [
+    {"url": "https://example.com/files/app-1.0.zip", "want": "app-1.0.zip"},
+    {"url": "https://example.com/get.zip#/dl.7z", "want": "get.zip"},
+    {"url": "https://example.com/download.php?file=tool.zip", "want": "tool.zip"},
+    {"url": "https://example.com/download#/dl.7z", "want": "dl.7z"},
+    {"url": "https://example.com/1.0", "want": "1.0"}
+  ],
+  "sourceforge": [
+    {"url": "https://sourceforge.net/projects/sevenzip/files/7-Zip/24.09/7z2409-x64.exe/download", "want": "https://downloads.sourceforge.net/project/sevenzip/7-Zip/24.09/7z2409-x64.exe"},
+    {"url": "http://downloads.sourceforge.net/project/notepad-plus-plus/Notepad%20Plus%20Plus.zip", "want": "https://downloads.sourceforge.net/project/notepad-plus-plus/Notepad%20Plus%20Plus.zip"},
+    {"url": "https://example.com/files/app.zip", "want": ""}
+  ],
+  "fosshub": [
+    {"url": "https://www.fosshub.com/Audacity.html?dwl=audacity-win-3.7.1.exe", "project": "Audacity.html", "file": "audacity-win-3.7.1.exe"},
+    {"url": "https://example.com/files/app.zip", "project": "", "file": ""}
+  ],
+  "github": [
+    {"url": "https://github.com/owner/repo/releases/download/v1.0/tool.zip", "owner": "owner", "repo": "repo", "tag": "v1.0", "file": "tool.zip", "rest": ""},
+    {"url": "https://github.com/owner/repo/releases/download/v1.0/tool.zip#/dl.zip", "owner": "owner", "repo": "repo", "tag": "v1.0", "file": "tool.zip", "rest": "#/dl.zip"},
+    {"url": "https://example.com/files/app.zip", "owner": "", "repo": "", "tag": "", "file": "", "rest": ""}
+  ],
+  "redirects": [
+    {"url": "https://host.example/a.zip#/dl.7z", "location": "https://cdn.example/x.bin", "want": "https://cdn.example/x.bin#/dl.7z"},
+    {"url": "https://host.example/a.zip", "location": "https://cdn.example/x.bin", "want": "https://cdn.example/x.bin"}
+  ],
+  "proxies": [
+    {"setting": "", "mode": "system"},
+    {"setting": "none", "mode": "direct"},
+    {"setting": "default", "mode": "system"},
+    {"setting": "proxy:8080", "mode": "custom", "address": "proxy:8080"},
+    {"setting": "user:p\\@ss@proxy:8080", "mode": "custom", "address": "proxy:8080", "username": "user", "password": "p@ss"},
+    {"setting": "currentuser@proxy:8080", "mode": "custom", "address": "proxy:8080", "defaultCreds": true},
+    {"setting": "user@", "mode": "error"}
+  ],
+  "cookies": [
+    {"cookies": {"b": "2", "a": "1"}, "want": "a=1;b=2"},
+    {"cookies": {}, "want": ""}
+  ]
+}

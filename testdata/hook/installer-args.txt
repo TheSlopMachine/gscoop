@@ -1,0 +1,7 @@
+input: /S /D=$dir --persist "$persist_dir" --version $version --global $global
+dir: C:\scoop\apps\demo\1.4.2
+persist_dir: C:\scoop\persist\demo
+version: 1.4.2
+global false: False
+expect: /S /D=C:\scoop\apps\demo\1.4.2 --persist "C:\scoop\persist\demo" --version 1.4.2 --global False
+rule: $original_dir sorts before $dir so the longer token wins

@@ -1,0 +1,32 @@
+{
+    "bin": [
+        "bin/git.exe",
+        [
+            "bin/gitk.exe",
+            "gitk"
+        ]
+    ],
+    "depends": "dep",
+    "description": "Distributed version control",
+    "env_add_path": [
+        "bin",
+        "."
+    ],
+    "env_set": {
+        "GIT_DIR": "$dir/.git"
+    },
+    "homepage": "https://git-scm.com/",
+    "license": "GPL-2.0-only",
+    "notes": "See $dir for details.",
+    "shortcuts": [
+        [
+            "bin/git.exe",
+            "Git"
+        ]
+    ],
+    "suggest": {
+        "extras": "helper"
+    },
+    "version": "2.0.0"
+}
+

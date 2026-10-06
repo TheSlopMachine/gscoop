@@ -1,0 +1,13 @@
+Usage: scoop cache show|rm [app(s)]
+
+Scoop caches downloads so you don't need to download the same files
+when you uninstall and re-install the same version of an app.
+
+You can use
+    scoop cache show
+to see what's in the cache, and
+    scoop cache rm <app> to remove downloads for a specific app.
+
+To clear everything in your cache, use:
+    scoop cache rm *
+You can also use the `-a/--all` switch in place of `*` here

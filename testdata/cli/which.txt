@@ -1,0 +1,3 @@
+Usage: scoop which <command>
+
+Locate the path to a shim/executable that was installed with Scoop (similar to 'which' on Linux)

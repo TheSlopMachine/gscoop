@@ -1,0 +1,3 @@
+Usage: scoop list [query]
+
+Lists all installed apps, or the apps matching the supplied query.

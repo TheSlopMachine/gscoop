@@ -1,0 +1,7 @@
+Name    Installed Version  Latest Version  Missing Dependencies  Info
+broken                                                           Install failed, Manifest removed
+git     1.0.0              2.0.0
+leg     1.0.0                                                    Deprecated
+lonely  1.0.0                              ghost
+oldapp  1.0.0                                                    Manifest removed
+

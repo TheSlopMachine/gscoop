@@ -1,0 +1,6 @@
+exe: <name>.exe payload copy plus <name>.shim path/args
+bat: <name>.cmd with @rem plus quoted call, POSIX wrapper with MSYS2_ARG_CONV_EXCL
+ps1: <name>.ps1 Join-Path PSScriptRoot form when relative, pwsh/powershell .cmd launcher, POSIX pwsh branch
+jar: <name>.cmd pushd plus java -jar, POSIX java.exe call
+py: <name>.cmd python call, POSIX python.exe call
+other: <name>.cmd wslpath/cygpath branches, POSIX wslpath call

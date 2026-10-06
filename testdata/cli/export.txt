@@ -1,0 +1,4 @@
+Usage: scoop export > scoopfile.json
+
+Options:
+  -c, --config       Export the Scoop configuration file too

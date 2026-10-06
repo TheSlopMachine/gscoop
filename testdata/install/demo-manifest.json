@@ -1,0 +1,39 @@
+{
+    "version": "1.4.2",
+    "description": "Synthetic install fixture with bin, shortcuts, env, persist, and hooks.",
+    "homepage": "https://example.invalid/demo",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://example.invalid/demo-1.4.2.zip",
+            "hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "bin": [
+                "demo.exe",
+                ["helper.exe", "helper", "--serve \"$dir\\data\""],
+                ["tool.ps1", "tool"]
+            ],
+            "shortcuts": [
+                ["demo.exe", "Demo"],
+                ["helper.exe", "Tools\\Helper", "--serve", "icon.ico"]
+            ],
+            "env_add_path": ["bin", "tools"],
+            "env_set": {
+                "DEMO_HOME": "$dir",
+                "DEMO_MODE": "fixture"
+            }
+        }
+    },
+    "bin": "demo.exe",
+    "persist": ["config.ini", ["data", "data"]],
+    "psmodule": { "name": "DemoModule" },
+    "pre_install": "Write-Host \"pre $env:GSCOOP_HOOK_VERSION\"",
+    "post_install": "Write-Host \"post $env:GSCOOP_HOOK_VERSION\"",
+    "installer": {
+        "file": "setup.exe",
+        "args": ["/S", "/D=$dir"],
+        "keep": false
+    },
+    "notes": "See $dir for details.",
+    "suggest": { "lint": ["ripgrep"] },
+    "depends": ["base"]
+}

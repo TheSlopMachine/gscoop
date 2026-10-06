@@ -1,0 +1,4 @@
+Usage: scoop checkup
+
+Performs a series of diagnostic tests to try to identify things that may
+cause problems with Scoop.

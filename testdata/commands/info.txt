@@ -1,0 +1,17 @@
+Name: git
+Description: Distributed version control
+Version: 1.0.0 (Update to 2.0.0 available)
+Source: main
+Website: https://git-scm.com
+License: GPL-2.0-only
+Dependencies: dep
+Updated at: <WHEN>
+Installed: 1.0.0
+Binaries: bin/git.exe | gitk.exe
+Shortcuts: Git
+Environment: GIT_DIR = <root>/.git
+Path Added: <root>/bin
+<root>
+Suggestions: helper
+Notes: See <root> for details.
+

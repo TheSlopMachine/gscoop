@@ -1,0 +1,4 @@
+Installed apps matching 'git':
+Name  Version  Source  Updated              Info
+git   1.0.0    main    <WHEN>
+

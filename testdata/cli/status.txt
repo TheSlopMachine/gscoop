@@ -1,0 +1,5 @@
+Usage: scoop status
+
+Options:
+  -l, --local         Checks the status for only the locally installed apps,
+                      and disables remote fetching/checking for Scoop and buckets

@@ -1,0 +1,10 @@
+Usage: scoop unhold <app>
+
+To unhold a user-scoped app:
+     scoop unhold <app>
+
+To unhold a global app:
+     scoop unhold -g <app>
+
+Options:
+  -g, --global  Unhold globally installed apps

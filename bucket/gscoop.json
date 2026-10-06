@@ -1,0 +1,64 @@
+{
+    "##": [
+        "TODO: replace the placeholder hashes below with the release sha256 values on the first tagged release.",
+        "TODO: confirm homepage and checkver repo once the gscoop release org is fixed."
+    ],
+    "version": "0.1.0",
+    "description": "Native Go replacement for the Scoop command-line installer.",
+    "homepage": "https://github.com/ScoopInstaller/gscoop",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/ScoopInstaller/gscoop/releases/download/v0.1.0/gscoop-0.1.0-windows-amd64.zip",
+            "hash": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "32bit": {
+            "url": "https://github.com/ScoopInstaller/gscoop/releases/download/v0.1.0/gscoop-0.1.0-windows-386.zip",
+            "hash": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "arm64": {
+            "url": "https://github.com/ScoopInstaller/gscoop/releases/download/v0.1.0/gscoop-0.1.0-windows-arm64.zip",
+            "hash": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+    },
+    "bin": "gscoop.exe",
+    "post_install": [
+        "$shimdir = \"$(Split-Path (Split-Path (Split-Path $dir -Parent) -Parent) -Parent)\\shims\"",
+        "foreach ($ext in @('exe', 'shim', 'cmd', 'ps1')) {",
+        "    $cur = Join-Path $shimdir \"scoop.$ext\"",
+        "    $bak = Join-Path $shimdir \"scoop.classic.$ext\"",
+        "    if ((Test-Path $cur) -and (-not (Test-Path $bak))) { Move-Item $cur $bak -Force }",
+        "}",
+        "Copy-Item (Join-Path $dir 'gscoop.exe') (Join-Path $shimdir 'scoop.exe') -Force",
+        "$gscoop = Join-Path $dir 'gscoop.exe'",
+        "\"path = `\"$gscoop`\"\" | Out-File (Join-Path $shimdir 'scoop.shim') -Encoding ascii",
+        "Remove-Item (Join-Path $shimdir 'scoop.cmd'), (Join-Path $shimdir 'scoop.ps1') -ErrorAction SilentlyContinue"
+    ],
+    "post_uninstall": [
+        "$shimdir = \"$(Split-Path (Split-Path (Split-Path $dir -Parent) -Parent) -Parent)\\shims\"",
+        "foreach ($ext in @('exe', 'shim', 'cmd', 'ps1')) {",
+        "    $cur = Join-Path $shimdir \"scoop.$ext\"",
+        "    $bak = Join-Path $shimdir \"scoop.classic.$ext\"",
+        "    if (Test-Path $bak) { Move-Item $bak $cur -Force }",
+        "}"
+    ],
+    "checkver": {
+        "github": "https://github.com/ScoopInstaller/gscoop"
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/ScoopInstaller/gscoop/releases/download/v$version/gscoop-$version-windows-amd64.zip"
+            },
+            "32bit": {
+                "url": "https://github.com/ScoopInstaller/gscoop/releases/download/v$version/gscoop-$version-windows-386.zip"
+            },
+            "arm64": {
+                "url": "https://github.com/ScoopInstaller/gscoop/releases/download/v$version/gscoop-$version-windows-arm64.zip"
+            }
+        },
+        "hash": {
+            "url": "$baseurl.sha256"
+        }
+    }
+}

@@ -1,0 +1,7 @@
+Usage: scoop uninstall <app> [options]
+
+e.g. scoop uninstall git
+
+Options:
+  -g, --global   Uninstall a globally installed app
+  -p, --purge    Remove all persistent data

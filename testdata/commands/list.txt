@@ -1,0 +1,11 @@
+Installed apps:
+Name    Version  Source  Updated              Info
+broken                   <WHEN>  Install failed
+dep     1.0.0    main    <WHEN>
+git     1.0.0    main    <WHEN>
+leg     1.0.0    main    <WHEN>  Deprecated package
+lonely  1.0.0    main    <WHEN>
+oldapp  1.0.0    main    <WHEN>
+tool    3.1.0    main    <WHEN>  Held package
+gtool   1.0.0    main    <WHEN>  Global install
+

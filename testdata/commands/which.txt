@@ -1,0 +1,2 @@
+<ROOT>/scoop/apps/git/1.0.0/bin/git.exe
+

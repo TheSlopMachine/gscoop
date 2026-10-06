@@ -1,0 +1,36 @@
+Usage: scoop shim <subcommand> [<shim_name>...] [options] [other_args]
+
+Available subcommands: add, rm, list, info, alter.
+
+To add a custom shim, use the 'add' subcommand:
+
+    scoop shim add <shim_name> <command_path> [[--|--%] <args>...]
+
+To remove shims, use the 'rm' subcommand: (CAUTION: this could remove shims added by an app manifest)
+
+    scoop shim rm <shim_name> [<shim_name>...]
+
+To list all shims or matching shims, use the 'list' subcommand:
+
+    scoop shim list [<regex_pattern>...]
+
+To show a shim's information, use the 'info' subcommand:
+
+    scoop shim info <shim_name>
+
+To alternate a shim's target source, use the 'alter' subcommand:
+
+    scoop shim alter <shim_name>
+
+Options:
+  -g, --global       Manipulate global shim(s)
+
+HINT: The FIRST terminator token ('--' or PowerShell '--%'), if any, is treated as the option
+terminator and will NOT be included; everything after it is passed to the shim.
+So if you want to pass arguments like '-g' or '--global' to the shim, put them after a '--' or '--%'.
+Examples:
+    POSIX-style:    scoop shim add myapp 'D:\path\myapp.exe' '--' myapp_args --global
+    PowerShell:     scoop shim add myapp D:\path\myapp.exe --% myapp_args --global
+Notes:
+  - In PowerShell, '--' should be quoted to avoid parsing.
+  - '--%' disables PowerShell parsing of the remainder; pass literals as needed.

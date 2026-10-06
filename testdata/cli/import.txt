@@ -1,0 +1,4 @@
+Usage: scoop import <path/url to scoopfile.json>
+
+To replicate a Scoop installation from a file stored on Desktop, run
+     scoop import Desktop\scoopfile.json

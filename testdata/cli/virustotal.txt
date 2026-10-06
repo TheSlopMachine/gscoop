@@ -1,0 +1,29 @@
+Usage: scoop virustotal [* | app1 app2 ...] [options]
+
+Look for app's hash or url on virustotal.com
+
+Use a single '*' or the '-a/--all' switch to check all installed apps.
+
+To use this command, you have to sign up to VirusTotal's community,
+and get an API key. Then, tell scoop about your API key with:
+
+  scoop config virustotal_api_key <your API key: 64 lower case hex digits>
+
+Exit codes:
+ 0 -> success
+ 1 -> problem parsing arguments
+ 2 -> at least one package was marked unsafe by VirusTotal
+ 4 -> at least one exception was raised while looking for info
+ 8 -> at least one package couldn't be queried because the manifest couldn't be found
+16 -> VirusTotal API key is not configured
+Note: the exit codes (2, 4 & 8) may be combined, e.g. 6 -> exit codes
+      2 & 4 combined
+
+Options:
+  -a, --all                 Check for all installed apps
+  -s, --scan                For packages where VirusTotal has no information, send download URL
+                            for analysis (and future retrieval). This requires you to configure
+                            your virustotal_api_key.
+  -n, --no-depends          By default, all dependencies are checked too. This flag avoids it.
+  -u, --no-update-scoop     Don't update Scoop before checking if it's outdated
+  -p, --passthru            Return reports as objects

@@ -1,0 +1,3 @@
+Usage: scoop create <url>
+
+Create your own custom app manifest
