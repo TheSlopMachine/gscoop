@@ -72,6 +72,12 @@ func RunHold(env *Env, out io.Writer, args []string, global bool) int {
 		Errorf(out, "You need admin rights to hold global apps.")
 		return 1
 	}
+	for _, spec := range args {
+		if hasWildcard(spec) {
+			fmt.Fprintf(out, "Couldn't find manifest for '%s'.\n", spec)
+			return 1
+		}
+	}
 	code := 0
 	for _, app := range args {
 		if app == "scoop" {
@@ -141,6 +147,12 @@ func RunUnhold(env *Env, out io.Writer, args []string, global bool) int {
 	if global && !install.IsAdmin() {
 		Errorf(out, "You need admin rights to unhold global apps.")
 		return 1
+	}
+	for _, spec := range args {
+		if hasWildcard(spec) {
+			fmt.Fprintf(out, "Couldn't find manifest for '%s'.\n", spec)
+			return 1
+		}
 	}
 	code := 0
 	for _, app := range args {

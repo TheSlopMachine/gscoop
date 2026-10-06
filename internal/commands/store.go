@@ -285,6 +285,30 @@ type ManifestHit struct {
 	Path     string
 }
 
+// hasWildcard reports whether spec contains wildcard characters in the app
+// part. Classic parse_app and Get-Manifest resolve install and info specs
+// as literals, so a quoted `*` never expands. The check strips a leading
+// bucket/ prefix and a trailing @version suffix, then reports `*?[]` in
+// the remainder. An empty remainder counts as wildcard so `/` never yields
+// an empty Name. URLs return false; query `?` belongs to the URL.
+func hasWildcard(spec string) bool {
+	if isURL(spec) {
+		return false
+	}
+	s := strings.ReplaceAll(spec, "\\", "/")
+	s = strings.TrimLeft(s, "/")
+	if i := strings.LastIndex(s, "@"); i >= 0 && !strings.Contains(s[i:], "/") {
+		s = s[:i]
+	}
+	if parts := strings.SplitN(s, "/", 2); len(parts) == 2 {
+		s = parts[1]
+	}
+	if s == "" {
+		return true
+	}
+	return strings.ContainsAny(s, "*?[]")
+}
+
 // FindManifest mirrors Get-Manifest in lib/manifest.ps1 for local sources:
 // installed metadata, explicit bucket/app, bucket scan, and local paths.
 // Remote URLs need the download layer and are reported as unsupported.
@@ -292,6 +316,9 @@ type ManifestHit struct {
 // TODO(manifest,bucket): replace with internal/manifest and internal/bucket
 // when they land.
 func (e *Env) FindManifest(spec string, out io.Writer) *ManifestHit {
+	if hasWildcard(spec) {
+		return &ManifestHit{Name: spec}
+	}
 	app := strings.TrimLeft(spec, "/")
 	if isURL(app) {
 		return &ManifestHit{Name: appNameFromURL(app), URL: app}

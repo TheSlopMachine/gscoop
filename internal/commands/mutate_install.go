@@ -284,6 +284,12 @@ func RunInstall(env *Env, out io.Writer, args []string) int {
 		return 1
 	}
 	apps := uniqueArgs(r.Rest)
+	for _, spec := range apps {
+		if hasWildcard(spec) {
+			fmt.Fprintf(out, "Couldn't find manifest for '%s'.\n", spec)
+			return 1
+		}
+	}
 	var resolved []string
 	if independent {
 		resolved = apps
@@ -356,6 +362,12 @@ func RunUninstall(env *Env, out io.Writer, args []string) int {
 	if global && !install.IsAdmin() {
 		Errorf(out, "You need admin rights to uninstall global apps.")
 		return 1
+	}
+	for _, spec := range uniqueArgs(r.Rest) {
+		if hasWildcard(spec) {
+			fmt.Fprintf(out, "Couldn't find manifest for '%s'.\n", spec)
+			return 1
+		}
 	}
 	iex := &install.Executor{
 		Env:   env.mutateEnv(),

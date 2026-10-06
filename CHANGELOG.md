@@ -47,6 +47,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `home` prints nothing on success; `create` with no URL shows help and
   exits 0; command lookup is case-insensitive; UNC scoopfiles import
   from disk.
+- Literal commands (`install`, `info`, `uninstall`, `hold`, `download`,
+  `home`, `prefix`, `cat`, `depends`) treat `*?[]` as not-found instead
+  of creating `apps\*` or returning unrelated manifests.
 
 ## [0.1.0] - pre-release, no tag published yet
 
