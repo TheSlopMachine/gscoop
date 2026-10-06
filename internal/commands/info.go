@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -15,8 +17,9 @@ import (
 var licenseURL = regexp.MustCompile(`^((ht)|f)tps?://`)
 
 // RunInfo mirrors libexec/scoop-info.ps1: manifest fields, install state,
-// and the bucket git date when available. Remote download-size lookups need
-// the download layer and are omitted in Phase 1C.
+// and the bucket git date when available. Remote Download-size lookup for
+// uninstalled apps (scoop-info.ps1:198-227) needs the download layer and
+// stays omitted; verbose output for uninstalled apps omits Download size.
 func RunInfo(env *Env, out io.Writer, args []string) int {
 	cmd := cli.Lookup("info")
 	r := cli.GetOpt(args, cmd.ShortOpts, cmd.LongOpts)
@@ -167,7 +170,7 @@ func (e *Env) infoApp(out io.Writer, spec string, verbose bool) int {
 	if paths := envAddPathDisplay(m.EnvAddPathFor(arch), dir); paths != "" {
 		rows = append(rows, [2]string{"Path Added", paths})
 	}
-	if suggest := suggestDisplay(m.Suggest); len(suggest) > 0 {
+	if suggest := suggestDisplay(hit.Raw, m.Suggest); len(suggest) > 0 {
 		rows = append(rows, [2]string{"Suggestions", strings.Join(suggest, " | ")})
 	}
 	if notes := notesDisplay(m.Notes, dir, originalDir, persistDir); notes != "" {
@@ -338,25 +341,102 @@ func shortcutDisplay(entries []any) string {
 	return strings.Join(out, " | ")
 }
 
-// suggestDisplay flattens suggest values in sorted key order. Key order
-// follows the manifest document in classic; sorting keeps output
-// deterministic without an ordered map in this seam.
-//
-// TODO(manifest): preserve document order via internal/manifest.
-func suggestDisplay(suggest map[string]any) []string {
+// suggestDisplay flattens suggest values in manifest document order
+// (scoop-info.ps1:270-276 iterates PSObject properties in document order).
+// The decoded Manifest map loses order, so key order reads from raw JSON;
+// unparseable input falls back to sorted keys for deterministic output.
+func suggestDisplay(raw []byte, suggest map[string]any) []string {
 	if len(suggest) == 0 {
 		return nil
 	}
-	keys := make([]string, 0, len(suggest))
-	for k := range suggest {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
 	var out []string
-	for _, k := range keys {
+	for _, k := range suggestKeyOrder(raw, suggest) {
 		out = append(out, anyToStrings(suggest[k])...)
 	}
 	return out
+}
+
+// suggestKeyOrder returns suggest keys in raw JSON document order, with any
+// decoded keys absent from raw appended in sorted order.
+func suggestKeyOrder(raw []byte, suggest map[string]any) []string {
+	ordered := orderedSuggestKeys(raw)
+	if len(ordered) == 0 {
+		keys := make([]string, 0, len(suggest))
+		for k := range suggest {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		return keys
+	}
+	seen := map[string]bool{}
+	var keys []string
+	for _, k := range ordered {
+		if _, ok := suggest[k]; ok && !seen[k] {
+			seen[k] = true
+			keys = append(keys, k)
+		}
+	}
+	var rest []string
+	for k := range suggest {
+		if !seen[k] {
+			rest = append(rest, k)
+		}
+	}
+	sort.Strings(rest)
+	return append(keys, rest...)
+}
+
+// orderedSuggestKeys extracts the key order of the top-level suggest object
+// from raw manifest JSON.
+func orderedSuggestKeys(raw []byte) []string {
+	if len(raw) == 0 {
+		return nil
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	tok, err := dec.Token()
+	if err != nil {
+		return nil
+	}
+	if d, ok := tok.(json.Delim); !ok || d != '{' {
+		return nil
+	}
+	for dec.More() {
+		keyTok, err := dec.Token()
+		if err != nil {
+			return nil
+		}
+		key, _ := keyTok.(string)
+		if key != "suggest" {
+			var skip any
+			if err := dec.Decode(&skip); err != nil {
+				return nil
+			}
+			continue
+		}
+		tok, err := dec.Token()
+		if err != nil {
+			return nil
+		}
+		if d, ok := tok.(json.Delim); !ok || d != '{' {
+			return nil
+		}
+		var keys []string
+		for dec.More() {
+			innerTok, err := dec.Token()
+			if err != nil {
+				return nil
+			}
+			if name, ok := innerTok.(string); ok {
+				keys = append(keys, name)
+			}
+			var skip any
+			if err := dec.Decode(&skip); err != nil {
+				return nil
+			}
+		}
+		return keys
+	}
+	return nil
 }
 
 func notesDisplay(notes any, dir, originalDir, persistDir string) string {

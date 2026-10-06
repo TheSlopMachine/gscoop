@@ -260,6 +260,11 @@ func RunInstall(env *Env, out io.Writer, args []string) int {
 		return 1
 	}
 	global := r.Has("g") || r.Has("global")
+	// Global installs need elevation (scoop-install.ps1:62-64).
+	if global && !install.IsAdmin() {
+		Errorf(out, "you need admin rights to install global apps")
+		return 1
+	}
 	// -k/--no-cache, -s/--skip-hash-check, and -u/--no-update-scoop stay
 	// accepted for CLI parity. install.Op and the Downloader seam carry no
 	// per-op cache or hash toggles, so the backend keeps its defaults until
@@ -347,6 +352,11 @@ func RunUninstall(env *Env, out io.Writer, args []string) int {
 	}
 	global := r.Has("g") || r.Has("global")
 	purge := r.Has("p") || r.Has("purge")
+	// Global uninstalls need elevation (scoop-uninstall.ps1:35-38).
+	if global && !install.IsAdmin() {
+		Errorf(out, "You need admin rights to uninstall global apps.")
+		return 1
+	}
 	iex := &install.Executor{
 		Env:   env.mutateEnv(),
 		Log:   install.Logger{Out: out, Err: out},
@@ -382,7 +392,9 @@ func RunUninstall(env *Env, out io.Writer, args []string) int {
 }
 
 // RunReset mirrors scoop-reset.ps1: -a/--all resets every app by
-// relinking current plus shims. Failures report per app.
+// relinking current plus shims. Per-app failures warn and continue;
+// the exit code stays 0 per classic (scoop-reset.ps1 ends exit 0).
+// A running process skips that app (test_running_process guard).
 func RunReset(env *Env, out io.Writer, args []string) int {
 	r := cli.GetOpt(args, "a", []string{"all"})
 	if r.Err != "" {
@@ -419,18 +431,15 @@ func RunReset(env *Env, out io.Writer, args []string) int {
 		printUsage(out, "reset")
 		return 1
 	}
-	code := 0
 	for _, t := range targets {
 		ver := env.CurrentVersion(t.app, t.global)
 		if ver == "" {
-			Errorf(out, "'%s' is not installed.", t.app)
-			code = 1
+			Warnf(out, "'%s' is not installed.", t.app)
 			continue
 		}
 		versionDir := env.VersionDir(t.app, ver, t.global)
 		if fi, err := os.Stat(versionDir); err != nil || !fi.IsDir() {
-			Errorf(out, "'%s (%s)' isn't installed.", t.app, ver)
-			code = 1
+			Warnf(out, "'%s (%s)' isn't installed.", t.app, ver)
 			continue
 		}
 		if t.global && !install.IsAdmin() {
@@ -438,22 +447,24 @@ func RunReset(env *Env, out io.Writer, args []string) int {
 			continue
 		}
 		Infof(out, "Resetting %s (%s).", t.app, ver)
+		if err := install.CheckRunning(env.AppDir(t.app, t.global), false, nil); err != nil {
+			fmt.Fprintln(out, err.Error())
+			continue
+		}
 		if !env.NoJunction {
 			if _, err := junction.LinkCurrent(env.AppDir(t.app, t.global), versionDir, func(s string) {
 				fmt.Fprintln(out, s)
 			}); err != nil {
-				Errorf(out, "Could not reset '%s': %s", t.app, err.Error())
-				code = 1
+				Warnf(out, "Could not reset '%s': %s", t.app, err.Error())
 				continue
 			}
 		}
 		if err := resetShims(env, out, t.app, ver, t.global); err != nil {
-			Errorf(out, "Could not reset '%s': %s", t.app, err.Error())
-			code = 1
+			Warnf(out, "Could not reset '%s': %s", t.app, err.Error())
 			continue
 		}
 	}
-	return code
+	return 0
 }
 
 // resetShims recreates shims for the installed version manifest.

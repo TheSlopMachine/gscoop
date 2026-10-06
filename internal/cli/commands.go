@@ -1,6 +1,10 @@
 // Command metadata for the 28 Scoop subcommands. Usage and Summary strings
-// are verbatim copies of the classic libexec headers. No emojis.
+// are verbatim copies of the classic libexec headers. Lookup matches names
+// case-insensitively. The listing covers the 28 classic subcommands only;
+// doctor and unswap dispatch as extras in cmd/gscoop. No emojis.
 package cli
+
+import "strings"
 
 // Command describes one subcommand's CLI surface.
 type Command struct {
@@ -220,9 +224,10 @@ var Commands = []Command{
 }
 
 // Lookup returns the Command for name, or nil for unknown names.
+// Comparison is case-insensitive.
 func Lookup(name string) *Command {
 	for i := range Commands {
-		if Commands[i].Name == name {
+		if strings.EqualFold(Commands[i].Name, name) {
 			return &Commands[i]
 		}
 	}

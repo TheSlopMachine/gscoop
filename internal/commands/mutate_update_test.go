@@ -369,7 +369,7 @@ func TestRunHome(t *testing.T) {
 	if out, code := runPhase3A(env, "home", []string{"bare"}); code != 1 || !strings.Contains(out, "Could not find homepage") {
 		t.Errorf("bare manifest exit = %d, out = %q", code, out)
 	}
-	if out, code := runPhase3A(env, "home", []string{"plain"}); code != 0 || !strings.Contains(out, "https://example.com/plain") {
+	if out, code := runPhase3A(env, "home", []string{"plain"}); code != 0 || strings.Contains(out, "https://example.com/plain") {
 		t.Errorf("home exit = %d, out = %q", code, out)
 	}
 }

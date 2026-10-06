@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -61,10 +63,17 @@ func exportConfig(env *Env) any {
 	return vals
 }
 
-// exportBuckets mirrors list_buckets in lib/buckets.ps1.
+// exportBuckets mirrors list_buckets in lib/buckets.ps1:104-121. Classic
+// counts manifests under the literal `bucket` subpath of the bucket root,
+// so a bucket without an inner bucket/ directory reports 0. Counts from
+// ListBuckets fall back to the bucket root there; export clamps those to 0.
 func exportBuckets(env *Env) []any {
 	var out []any
 	for _, b := range env.ListBuckets() {
+		manifests := b.Manifests
+		if fi, err := os.Stat(filepath.Join(env.bucketRoot(b.Name), "bucket")); err != nil || !fi.IsDir() {
+			manifests = 0
+		}
 		updated := b.Updated
 		var updatedVal any = updated
 		if updated == "" {
@@ -74,7 +83,7 @@ func exportBuckets(env *Env) []any {
 			{key: "Name", val: b.Name},
 			{key: "Source", val: b.Source},
 			{key: "Updated", val: updatedVal},
-			{key: "Manifests", val: b.Manifests},
+			{key: "Manifests", val: manifests},
 		})
 	}
 	return out

@@ -29,6 +29,8 @@ import (
 )
 
 // RunShim mirrors libexec/scoop-shim.ps1 argument handling.
+// The first "--" or "--%" token ends option parsing for add and
+// passes the remainder to the shim verbatim.
 func RunShim(env *Env, out io.Writer, args []string) int {
 	if len(args) == 0 {
 		Errorf(out, "<subcommand> missing")
@@ -41,13 +43,14 @@ func RunShim(env *Env, out io.Writer, args []string) int {
 		printUsage(out, "shim")
 		return 1
 	}
-	r := cli.GetOpt(rest, "g", []string{"global"})
+	head, tail := splitShimTerminator(rest)
+	r := cli.GetOpt(head, "g", []string{"global"})
 	if r.Err != "" {
 		Errorf(out, "scoop shim: %s", r.Err)
 		return 1
 	}
 	global := r.Has("g") || r.Has("global")
-	other := r.Rest
+	other := append(r.Rest, tail...)
 	if sub != "list" && len(other) == 0 {
 		Errorf(out, "<shim_name> must be specified for subcommand '%s'", sub)
 		printUsage(out, "shim")
@@ -65,6 +68,17 @@ func RunShim(env *Env, out io.Writer, args []string) int {
 	default:
 		return shimAlter(env, out, other, global)
 	}
+}
+
+// splitShimTerminator splits args at the first "--" or "--%" token.
+// The head parses as options; the tail passes through verbatim.
+func splitShimTerminator(args []string) (head, tail []string) {
+	for i, a := range args {
+		if a == "--" || a == "--%" {
+			return args[:i], args[i+1:]
+		}
+	}
+	return args, nil
 }
 
 // shimFile finds name.shim or name.ps1 under the scope shim dir.
@@ -87,18 +101,23 @@ func shimScopeLabel(global bool) string {
 	return "Local"
 }
 
-// shimAdd mirrors the add branch (scoop-shim.ps1:97-125).
+// shimAdd mirrors the add branch (scoop-shim.ps1:97-125). The first
+// "--" or "--%" token ends option parsing; the remainder passes to
+// the shim as args verbatim.
 func shimAdd(env *Env, out io.Writer, other []string, global bool) int {
-	if len(other) < 2 || other[1] == "" {
+	pre, post := splitShimTerminator(other)
+	if len(pre) < 2 || pre[1] == "" {
 		Errorf(out, "<command_path> must be specified for subcommand 'add'")
 		printUsage(out, "shim")
 		return 1
 	}
-	name, commandPath := other[0], other[1]
-	var commandArgs string
-	if len(other) > 2 {
-		commandArgs = strings.Join(other[2:], " ")
+	name, commandPath := pre[0], pre[1]
+	var extras []string
+	if len(pre) > 2 {
+		extras = append(extras, pre[2:]...)
 	}
+	extras = append(extras, post...)
+	commandArgs := strings.Join(extras, " ")
 	if !strings.ContainsAny(commandPath, `/\`) {
 		if resolved := shim.GetShimTarget(shimFile(env, commandPath, global)); resolved != "" {
 			commandPath = resolved
@@ -107,11 +126,11 @@ func shimAdd(env *Env, out io.Writer, other []string, global bool) int {
 		}
 	}
 	if commandPath == "" {
-		Errorf(out, "Command path does not exist: %s", other[1])
+		Errorf(out, "Command path does not exist: %s", pre[1])
 		return 3
 	}
 	if _, err := os.Stat(commandPath); err != nil {
-		Errorf(out, "Command path does not exist: %s", other[1])
+		Errorf(out, "Command path does not exist: %s", pre[1])
 		return 3
 	}
 	if global {
@@ -226,6 +245,8 @@ func ownerFromPath(env *Env, target string) string {
 }
 
 // shimList mirrors the list branch (scoop-shim.ps1:142-167).
+// The default scope covers both shim dirs; the global flag lists
+// the global dir only.
 func shimList(env *Env, out io.Writer, other []string, global bool) int {
 	patterns := []string{}
 	for _, p := range other {
@@ -243,12 +264,14 @@ func shimList(env *Env, out io.Writer, other []string, global bool) int {
 	joined := strings.Join(patterns, "|")
 	var paths []string
 	var scopes []bool
-	locals, _ := filepath.Glob(filepath.Join(env.ShimDir(false), "*.shim"))
-	localsPS, _ := filepath.Glob(filepath.Join(env.ShimDir(false), "*.ps1"))
-	for _, p := range append(locals, localsPS...) {
-		if joined == "" || regexp.MustCompile(joined).MatchString(shimBase(p)) {
-			paths = append(paths, p)
-			scopes = append(scopes, false)
+	if !global {
+		locals, _ := filepath.Glob(filepath.Join(env.ShimDir(false), "*.shim"))
+		localsPS, _ := filepath.Glob(filepath.Join(env.ShimDir(false), "*.ps1"))
+		for _, p := range append(locals, localsPS...) {
+			if joined == "" || regexp.MustCompile(joined).MatchString(shimBase(p)) {
+				paths = append(paths, p)
+				scopes = append(scopes, false)
+			}
 		}
 	}
 	if fi, err := os.Stat(env.ShimDir(true)); err == nil && fi.IsDir() {
@@ -605,6 +628,9 @@ func splitHash(hash string) (string, string) {
 }
 
 // vtFileReport queries files/:hash and prints the vendor verdict.
+// No sleep-retry by design: one request per endpoint; rate limits
+// abort the run. No size check by design: verdicts derive from
+// analysis stats only.
 func vtFileReport(out io.Writer, app, rawURL, hash, algo, apiKey string) (string, int, string) {
 	status, body, err := vtRequest("GET", "https://www.virustotal.com/api/v3/files/"+strings.ToLower(hash), apiKey, nil)
 	if err != nil {
@@ -660,6 +686,8 @@ func vtFileReport(out io.Writer, app, rawURL, hash, algo, apiKey string) (string
 
 // vtURLReport queries urls/:id and optionally submits the URL for
 // analysis, mirroring Get-VirusTotalResultByUrl plus Submit-ToVirusTotal.
+// No object-graph hydration by design: only the related file hash
+// resolves further, without traversing additional relations.
 func vtURLReport(out io.Writer, app string, target vtTarget, hash, algo, apiKey string, doScan bool) (string, int, bool) {
 	id := vtURLID(target.url)
 	status, body, err := vtRequest("GET", "https://www.virustotal.com/api/v3/urls/"+id, apiKey, nil)
@@ -714,6 +742,8 @@ func vtURLReport(out io.Writer, app string, target vtTarget, hash, algo, apiKey 
 }
 
 // vtSubmitURL posts the URL for analysis when --scan is set.
+// No sleep-retry by design: the submission returns the pending
+// report synchronously.
 func vtSubmitURL(out io.Writer, app, rawURL, apiKey string, doScan bool) string {
 	if !doScan {
 		Warnf(out, "%s: not found: you can manually submit %s", app, rawURL)

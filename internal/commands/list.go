@@ -21,7 +21,10 @@ type AppRow struct {
 }
 
 // CollectApps mirrors the scoop-list.ps1 enumeration over user and global
-// scopes with an optional regex query filter.
+// scopes with an optional regex query filter. Rows return sorted by scope
+// then name for deterministic output; classic enumerates filesystem order
+// (scoop-list.ps1:15-18). Invalid regex returns the compile error; RunList
+// reports it with exit 1.
 func (e *Env) CollectApps(query string) ([]AppRow, error) {
 	var re *regexp.Regexp
 	if query != "" {

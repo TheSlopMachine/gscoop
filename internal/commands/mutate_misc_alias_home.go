@@ -9,7 +9,6 @@
 package commands
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -229,7 +228,8 @@ var openBrowser = func(url string) error {
 }
 
 // RunHome mirrors libexec/scoop-home.ps1: positional app, manifest
-// lookup, homepage open.
+// lookup, homepage open. Success prints nothing; the browser opens
+// the homepage directly.
 func RunHome(env *Env, out io.Writer, args []string) int {
 	if len(args) == 0 {
 		printUsage(out, "home")
@@ -246,7 +246,6 @@ func RunHome(env *Env, out io.Writer, args []string) int {
 		Errorf(out, "Could not find homepage in manifest for '%s'.", app)
 		return 1
 	}
-	fmt.Fprintf(out, "Opening %s\n", homepage)
 	if err := openBrowser(homepage); err != nil {
 		Errorf(out, "Could not open homepage: %s", err.Error())
 		return 1

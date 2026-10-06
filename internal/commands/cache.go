@@ -12,8 +12,11 @@ import (
 
 // RunCache mirrors libexec/scoop-cache.ps1 for the read-only paths: bare
 // `scoop cache` and `scoop cache show [app]` list cache entries as
-// Name/Version/Length rows plus a Total line. Removal deletes matching
-// `<app>#*` files plus `<app>.txt` sidecars.
+// Name/Version/Length rows plus a Total line. Only `rm` deletes;
+// every other dispatch path lists. Removal deletes matching
+// `<app>#*` files plus `<app>.txt` sidecars. App names join into the
+// match pattern unescaped, mirroring classic `($app -join '|')`, so
+// regex metacharacters in names act as pattern syntax in both.
 func RunCache(env *Env, out io.Writer, args []string) int {
 	cmd := ""
 	var rest []string
@@ -40,7 +43,8 @@ func RunCache(env *Env, out io.Writer, args []string) int {
 
 // cacheRemove mirrors cacheremove in libexec/scoop-cache.ps1: `-a/--all`
 // or `*` clears the cache directory, otherwise entries matching
-// `^(app1|app2)#` are deleted with their `<app>.txt` sidecars.
+// `^(app1|app2)#` are deleted with their `<app>.txt` sidecars. Names
+// join unescaped per classic, preserving the regex quirk.
 func cacheRemove(env *Env, out io.Writer, apps []string) int {
 	clearAll := false
 	for _, a := range apps {
@@ -88,7 +92,8 @@ func cacheRemove(env *Env, out io.Writer, apps []string) int {
 }
 
 // cacheShow mirrors cacheshow in lib/cache.ps1: entries matching
-// ^(app1|app2)#, or everything for empty and "*" filters.
+// ^(app1|app2)#, or everything for empty and "*" filters. Names join
+// unescaped per classic, preserving the regex quirk.
 func cacheShow(env *Env, out io.Writer, apps []string) int {
 	pattern := ".*?"
 	if len(apps) > 0 && !(len(apps) == 1 && apps[0] == "*") {

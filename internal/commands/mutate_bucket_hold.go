@@ -8,6 +8,7 @@ import (
 
 	"github.com/TheSlopMachine/gscoop/internal/config"
 	"github.com/TheSlopMachine/gscoop/internal/gitengine"
+	"github.com/TheSlopMachine/gscoop/internal/install"
 )
 
 // RunBucketAdd mirrors add_bucket (lib/buckets.ps1:123-170): exit 2
@@ -56,10 +57,19 @@ func RunBucketRm(env *Env, out io.Writer, name string) int {
 // RunHold mirrors scoop-hold.ps1: scoop itself writes
 // HOLD_UPDATE_UNTIL one day out; apps write hold:true through the
 // ordered install-info writer.
+//
+// Strictness: missing apps exit 1; global scope without admin rights
+// exits 1 before any mutation; per-app failures accumulate and the
+// exit is 1 when any item fails. Already-held items report info and
+// skip the rewrite.
 func RunHold(env *Env, out io.Writer, args []string, global bool) int {
 	if len(args) == 0 {
 		Errorf(out, "<app> missing")
 		printUsage(out, "hold")
+		return 1
+	}
+	if global && !install.IsAdmin() {
+		Errorf(out, "You need admin rights to hold global apps.")
 		return 1
 	}
 	code := 0
@@ -70,6 +80,10 @@ func RunHold(env *Env, out io.Writer, args []string, global bool) int {
 			if err != nil {
 				fmt.Fprintln(out, err.Error())
 				code = 1
+				continue
+			}
+			if v, ok := store.Value("hold_update_until"); ok && v != nil && fmt.Sprint(v) != "" {
+				Infof(out, "'%s' is already held.", app)
 				continue
 			}
 			hold := holdUntilTomorrow()
@@ -97,6 +111,10 @@ func RunHold(env *Env, out io.Writer, args []string, global bool) int {
 		}
 		ver := env.CurrentVersion(app, global)
 		dir := env.VersionDir(app, ver, global)
+		if dirHoldSet(dir) {
+			Infof(out, "'%s' is already held.", app)
+			continue
+		}
 		if err := setHoldFlag(dir, true); err != nil {
 			Errorf(out, "Failed to hold '%s'.", app)
 			code = 1
@@ -109,10 +127,19 @@ func RunHold(env *Env, out io.Writer, args []string, global bool) int {
 
 // RunUnhold mirrors scoop-unhold.ps1: scoop clears
 // HOLD_UPDATE_UNTIL; apps clear hold through the ordered writer.
+//
+// Strictness: missing apps exit 1; global scope without admin rights
+// exits 1 before any mutation; per-app failures accumulate and the
+// exit is 1 when any item fails. Items that are not held report info
+// and skip the rewrite.
 func RunUnhold(env *Env, out io.Writer, args []string, global bool) int {
 	if len(args) == 0 {
 		Errorf(out, "<app> missing")
 		printUsage(out, "unhold")
+		return 1
+	}
+	if global && !install.IsAdmin() {
+		Errorf(out, "You need admin rights to unhold global apps.")
 		return 1
 	}
 	code := 0
@@ -121,6 +148,10 @@ func RunUnhold(env *Env, out io.Writer, args []string, global bool) int {
 			path := config.ConfigFilePath()
 			store, err := config.Load(path)
 			if err == nil {
+				if v, ok := store.Value("hold_update_until"); !ok || v == nil || fmt.Sprint(v) == "" {
+					Infof(out, "'%s' is not held.", app)
+					continue
+				}
 				store.Remove("hold_update_until")
 				_ = store.Save()
 			}
@@ -138,6 +169,10 @@ func RunUnhold(env *Env, out io.Writer, args []string, global bool) int {
 		}
 		ver := env.CurrentVersion(app, global)
 		dir := env.VersionDir(app, ver, global)
+		if !dirHoldSet(dir) {
+			Infof(out, "'%s' is not held.", app)
+			continue
+		}
 		if err := setHoldFlag(dir, false); err != nil {
 			Errorf(out, "Failed to unhold '%s'.", app)
 			code = 1

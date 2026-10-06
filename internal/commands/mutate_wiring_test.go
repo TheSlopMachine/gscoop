@@ -230,8 +230,8 @@ func TestRunCreateScaffold(t *testing.T) {
 			t.Errorf("scaffold missing %s:\n%s", want, raw)
 		}
 	}
-	if code := RunCreate(env, &buf, nil); code != 1 {
-		t.Errorf("missing url exit = %d, want 1", code)
+	if code := RunCreate(env, &buf, nil); code != 0 {
+		t.Errorf("missing url exit = %d, want 0", code)
 	}
 	if code := RunCreate(env, &buf, []string{"not-a-url"}); code != 1 {
 		t.Errorf("invalid url exit = %d, want 1", code)

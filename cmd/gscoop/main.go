@@ -3,14 +3,15 @@
 // It mirrors the bin/scoop.ps1 dispatch shape: help flags list help,
 // --version reports the snapshot version, known subcommands resolve help
 // when the first argument is a help flag, and unknown subcommands fail with
-// exit code 1. Phase 1C read-only commands (list, info, cat, which, prefix,
+// exit code 1. Subcommand lookup is case-insensitive. Phase 1C read-only commands (list, info, cat, which, prefix,
 // depends, status, export, cache, checkup) execute via internal/commands,
 // Phase 2B mutations (install, uninstall, reset, download, import, bucket,
 // hold, unhold) and Phase 3A commands (update, cleanup, alias, home,
 // virustotal, shim) execute through their runners over wired backends,
 // misc commands (config, search, create) execute through theirs, and the
 // hidden maintenance commands doctor and unswap run before subcommand
-// lookup. Remaining subcommands report as unimplemented until later phases.
+// lookup as intentional extras beyond the 28 classic subcommands.
+// Remaining subcommands report as unimplemented until later phases.
 // No emojis.
 package main
 
@@ -45,10 +46,10 @@ func run(args []string) int {
 		// --oneline block per git-backed local bucket (bin/scoop.ps1:32-39).
 		return 0
 	}
-	if args[0] == "doctor" {
+	if strings.EqualFold(args[0], "doctor") {
 		return commands.RunDoctor(commands.DefaultEnv(), os.Stdout, args[1:])
 	}
-	if args[0] == "unswap" {
+	if strings.EqualFold(args[0], "unswap") {
 		return commands.RunUnswap(commands.DefaultEnv(), os.Stdout, args[1:])
 	}
 	cmd := cli.Lookup(args[0])

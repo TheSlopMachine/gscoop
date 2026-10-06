@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/TheSlopMachine/gscoop/internal/cli"
 	"github.com/TheSlopMachine/gscoop/internal/config"
 	"github.com/TheSlopMachine/gscoop/internal/search"
 )
@@ -144,12 +145,17 @@ func RunSearch(env *Env, out io.Writer, args []string) int {
 // create_manifest with empty interactive answers: the name is the URL file
 // stem, the version is empty, and the remaining fields are empty strings.
 // The document writes as indented JSON next to the working directory.
+// Non-interactive by design: no prompts run. No URL prints the create
+// help and exits 0.
 func RunCreate(env *Env, out io.Writer, args []string) int {
 	_ = env
 	if len(args) == 0 {
-		Errorf(out, "<url> missing")
-		printUsage(out, "create")
-		return 1
+		if text, ok := cli.Help("create"); ok {
+			fmt.Fprint(out, text)
+		} else {
+			printUsage(out, "create")
+		}
+		return 0
 	}
 	rawurl := args[0]
 	parsed, err := url.Parse(rawurl)

@@ -433,13 +433,14 @@ Options:
 
 // Help renders the "scoop help <cmd>" output: the Usage line, a blank line,
 // then the body. It returns false for unknown commands.
+// Lookup is case-insensitive.
 func Help(name string) (string, bool) {
 	cmd := Lookup(name)
 	if cmd == nil {
 		return "", false
 	}
 	out := "Usage: " + cmd.Usage + "\n"
-	if body, ok := bodies[name]; ok && body != "" {
+	if body, ok := bodies[cmd.Name]; ok && body != "" {
 		out += "\n" + body + "\n"
 	}
 	return out, true
@@ -462,6 +463,7 @@ func RunHelp(args []string) (string, int) {
 
 // TopHelp renders the "scoop help" listing: the fixed preamble plus one
 // "<command> - <summary>" line per command in alphabetical order.
+// The preamble is intentional and mirrors the classic listing shape.
 func TopHelp() string {
 	var b strings.Builder
 	b.WriteString("Usage: scoop <command> [<args>]\n")

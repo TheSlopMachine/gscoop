@@ -19,10 +19,13 @@ type scoopfileBucket struct {
 	Source string `json:"Source"`
 }
 
-// readScoopfile loads a scoopfile from a local path. URL scoopfiles
-// need the download layer and report as unsupported in this phase.
+// readScoopfile loads a scoopfile from a local path. UNC paths
+// (`\\server\share\file.json`) are local files: isURL reports a
+// leading `\\` as a URL, so UNC paths bypass the URL check and read
+// from disk. http(s)/ftp(s) scoopfiles need the download layer and
+// report as unsupported in this phase.
 func readScoopfile(scoopfile string) (map[string]any, []byte, error) {
-	if isURL(scoopfile) {
+	if !strings.HasPrefix(scoopfile, `\\`) && isURL(scoopfile) {
 		return nil, nil, fmt.Errorf("URL scoopfiles need the download backend")
 	}
 	raw, err := os.ReadFile(scoopfile)

@@ -40,6 +40,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the manifest; shim names match classic leaf plus extension-strip rules;
   download, hash, and extraction stages report progress. Shim failures
   remain fatal.
+- Command parity: `info` preserves manifest suggest order; `export`
+  counts bucket manifests like classic; `install`/`uninstall`/`hold`
+  enforce global admin rights; `reset` warns and exits 0; `shim add`
+  honors `--`/`--%` terminators and `shim list -g` shows globals only;
+  `home` prints nothing on success; `create` with no URL shows help and
+  exits 0; command lookup is case-insensitive; UNC scoopfiles import
+  from disk.
 
 ## [0.1.0] - pre-release, no tag published yet
 

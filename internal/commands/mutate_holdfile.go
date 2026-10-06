@@ -4,11 +4,42 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 )
 
 func holdUntilTomorrow() string {
 	return time.Now().Add(24 * time.Hour).Format(time.RFC3339Nano)
+}
+
+// holdFlagSet reports whether path carries "hold": true.
+// Missing files and unparsable documents read as not held.
+func holdFlagSet(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return false
+	}
+	v, ok := doc["hold"]
+	if !ok {
+		return false
+	}
+	held, ok := v.(bool)
+	return ok && held
+}
+
+// dirHoldSet reports whether dir holds app updates through either
+// install-info name.
+func dirHoldSet(dir string) bool {
+	for _, name := range []string{"scoop-install.json", "install.json"} {
+		if holdFlagSet(filepath.Join(dir, name)) {
+			return true
+		}
+	}
+	return false
 }
 
 func writeHoldFile(path string, hold bool) error {
