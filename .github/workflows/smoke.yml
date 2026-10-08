@@ -1,0 +1,404 @@
+name: smoke
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  smoke-hermetic:
+    runs-on: windows-latest
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build binary
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP/smoke/bin" | Write-Output
+          go build -o "$env:RUNNER_TEMP/smoke/bin/gscoop.exe" ./cmd/gscoop
+      - name: Seed isolated roots and tiny fixture
+        run: |
+          $Root = "$env:RUNNER_TEMP/smoke/h"
+          $Bin = "$env:RUNNER_TEMP/smoke/bin/gscoop.exe"
+          $LogDir = "$env:RUNNER_TEMP/smoke/logs"
+          New-Item -ItemType Directory -Force -Path "$Root/scoop" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$Root/global" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$Root/cache" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$Root/xdg/scoop" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$LogDir" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$Root/scoop/buckets/main/bucket" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$Root/scoop/apps/tiny/1.0.0" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$Root/scoop/apps/tiny/current" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$Root/scoop/shims" | Write-Output
+          # Seed manifest exercises persist, env_set, hooks.
+          $HookPre = 'New-Item -ItemType File -Force -Path "$dir\\.smoke-hook"'
+          $HookPost = 'Add-Content -Path "$dir\\.smoke-hook" -Value "post"'
+          $Obj = [ordered]@{ version = "1.0.0"; description = "Smoke fixture" }
+          $Obj.homepage = "https://example.com/tiny"
+          $Obj.license = "MIT"
+          $Obj.bin = "tiny.cmd"
+          $Obj.persist = "data"
+          $Obj.env_set = @{ SMOKE_TINY = "1" }
+          $Obj.pre_install = @($HookPre)
+          $Obj.post_install = @($HookPost)
+          $Manifest = ($Obj | ConvertTo-Json -Compress)
+          Set-Content -Path "$Root/scoop/buckets/main/bucket/tiny.json" -Value $Manifest -Encoding utf8
+          Set-Content -Path "$Root/scoop/apps/tiny/1.0.0/scoop-manifest.json" -Value $Manifest -Encoding utf8
+          Set-Content -Path "$Root/scoop/apps/tiny/current/scoop-manifest.json" -Value $Manifest -Encoding utf8
+          Set-Content -Path "$Root/scoop/apps/tiny/1.0.0/scoop-install.json" -Value '{"bucket":"main","architecture":"64bit"}' -Encoding utf8
+          Set-Content -Path "$Root/scoop/apps/tiny/1.0.0/tiny.cmd" -Value "@echo off`r`necho tiny" -Encoding ascii
+          Set-Content -Path "$Root/scoop/cache/tiny#1.0.0#tiny_zip" -Value "cached-bytes" -Encoding ascii
+          Set-Content -Path "$Root/scoop/shims/tiny.exe" -Value "shim-stub" -Encoding ascii
+          Set-Content -Path "$Root/scoop/shims/tiny.shim" -Value 'path = "tiny"' -Encoding ascii
+          Write-Output "Seed complete at $Root"
+      - name: Tier H dispatch and help surface
+        run: |
+          $env:SCOOP = "$env:RUNNER_TEMP/smoke/h/scoop"
+          $env:SCOOP_GLOBAL = "$env:RUNNER_TEMP/smoke/h/global"
+          $env:SCOOP_CACHE = "$env:RUNNER_TEMP/smoke/h/cache"
+          $env:XDG_CONFIG_HOME = "$env:RUNNER_TEMP/smoke/h/xdg"
+          $env:SCOOP_ARCH = "64bit"
+          $Exe = "$env:RUNNER_TEMP/smoke/bin/gscoop.exe"
+          function Assert-Code($Actual, $Want, $Name) { if ($Actual -ne $Want) { Write-Output "FAIL ${Name}: want ${Want} got ${Actual}"; exit 1 }; Write-Output "PASS ${Name} exit ${Actual}" }
+          & $Exe | Write-Output; Assert-Code $LASTEXITCODE 0 "bare"
+          & $Exe -h | Write-Output; Assert-Code $LASTEXITCODE 0 "dash-h"
+          & $Exe --version | Write-Output; Assert-Code $LASTEXITCODE 0 "version"
+          & $Exe help | Write-Output; Assert-Code $LASTEXITCODE 0 "help-bare"
+          & $Exe help list | Write-Output; Assert-Code $LASTEXITCODE 0 "help-list"
+          & $Exe help no-such-cmd 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "help-unknown"
+          & $Exe bogus-cmd 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "unknown-warn"
+          & $Exe doctor | Write-Output; Assert-Code $LASTEXITCODE 0 "doctor"
+          & $Exe unswap 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "unswap-no-backup"
+      - name: Tier H read-only commands
+        run: |
+          $env:SCOOP = "$env:RUNNER_TEMP/smoke/h/scoop"
+          $env:SCOOP_GLOBAL = "$env:RUNNER_TEMP/smoke/h/global"
+          $env:SCOOP_CACHE = "$env:RUNNER_TEMP/smoke/h/cache"
+          $env:XDG_CONFIG_HOME = "$env:RUNNER_TEMP/smoke/h/xdg"
+          $env:SCOOP_ARCH = "64bit"
+          $Exe = "$env:RUNNER_TEMP/smoke/bin/gscoop.exe"
+          function Assert-Code($Actual, $Want, $Name) { if ($Actual -ne $Want) { Write-Output "FAIL ${Name}: want ${Want} got ${Actual}"; exit 1 }; Write-Output "PASS ${Name} exit ${Actual}" }
+          & $Exe list | Write-Output; Assert-Code $LASTEXITCODE 0 "list-populated"
+          & $Exe list tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "list-query"
+          & $Exe info tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "info-populated"
+          & $Exe info 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "info-missing-arg"
+          & $Exe info no-such-app 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "info-unknown-app"
+          & $Exe info tiny --bogus 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "info-bad-flag"
+          & $Exe cat tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "cat-populated"
+          & $Exe cat 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "cat-missing-arg"
+          & $Exe cat no-such-app 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "cat-unknown-app"
+          & $Exe which tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "which-populated"
+          & $Exe which no-such-bin 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 2 "which-no-match"
+          & $Exe which 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "which-missing-arg"
+          & $Exe prefix tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "prefix-populated"
+          & $Exe prefix 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "prefix-missing-arg"
+          & $Exe prefix no-such-app 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "prefix-unknown-app"
+          & $Exe depends tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "depends-populated"
+          & $Exe depends 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "depends-missing-arg"
+          & $Exe status | Write-Output; Assert-Code $LASTEXITCODE 0 "status"
+          & $Exe export | Write-Output; Assert-Code $LASTEXITCODE 0 "export"
+          & $Exe cache show | Write-Output; Assert-Code $LASTEXITCODE 0 "cache-show"
+          & $Exe cache rm 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "cache-rm-missing-arg"
+          & $Exe cache rm zzz-no-such-app-zzz | Write-Output; Assert-Code $LASTEXITCODE 0 "cache-rm-no-match"
+          & $Exe download 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "download-missing-arg"
+          & $Exe download no-such-app 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "download-unknown-app"
+          & $Exe checkup | Write-Output; Assert-Code $LASTEXITCODE 0 "checkup"
+          & $Exe config | Write-Output; Assert-Code $LASTEXITCODE 0 "config-list"
+          & $Exe create 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 0 "create-no-url"
+          & $Exe search tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "search-populated"
+          & $Exe search zzz-no-such-app-zzz 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "search-no-match"
+      - name: Tier H buckets aliases shims hold cleanup reset config
+        run: |
+          $env:SCOOP = "$env:RUNNER_TEMP/smoke/h/scoop"
+          $env:SCOOP_GLOBAL = "$env:RUNNER_TEMP/smoke/h/global"
+          $env:SCOOP_CACHE = "$env:RUNNER_TEMP/smoke/h/cache"
+          $env:XDG_CONFIG_HOME = "$env:RUNNER_TEMP/smoke/h/xdg"
+          $env:SCOOP_ARCH = "64bit"
+          $Exe = "$env:RUNNER_TEMP/smoke/bin/gscoop.exe"
+          function Assert-Code($Actual, $Want, $Name) { if ($Actual -ne $Want) { Write-Output "FAIL ${Name}: want ${Want} got ${Actual}"; exit 1 }; Write-Output "PASS ${Name} exit ${Actual}" }
+          & $Exe bucket list | Write-Output; Assert-Code $LASTEXITCODE 0 "bucket-list"
+          & $Exe bucket known | Write-Output; Assert-Code $LASTEXITCODE 0 "bucket-known"
+          & $Exe alias list | Write-Output; Assert-Code $LASTEXITCODE 0 "alias-list"
+          & $Exe alias add smokealias "scoop list" | Write-Output; Assert-Code $LASTEXITCODE 0 "alias-add"
+          & $Exe alias list | Write-Output; Assert-Code $LASTEXITCODE 0 "alias-list-after-add"
+          & $Exe alias rm smokealias | Write-Output; Assert-Code $LASTEXITCODE 0 "alias-rm"
+          & $Exe alias bogus-sub 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "alias-bad-subcommand"
+          & $Exe shim list | Write-Output; Assert-Code $LASTEXITCODE 0 "shim-list"
+          & $Exe shim info tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "shim-info"
+          & $Exe shim info no-such-shim 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 3 "shim-info-missing"
+          & $Exe hold tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "hold-user"
+          & $Exe unhold tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "unhold-user"
+          & $Exe hold 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "hold-missing-arg"
+          & $Exe cleanup tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "cleanup-user"
+          & $Exe cleanup --bogus 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "cleanup-bad-flag"
+          & $Exe reset tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "reset-user"
+          & $Exe reset 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "reset-missing-arg"
+          & $Exe config smoke_probe 1 | Write-Output; Assert-Code $LASTEXITCODE 0 "config-set"
+          & $Exe config smoke_probe | Write-Output; Assert-Code $LASTEXITCODE 0 "config-get"
+          & $Exe config rm smoke_probe | Write-Output; Assert-Code $LASTEXITCODE 0 "config-rm"
+          & $Exe --version | Write-Output; Assert-Code $LASTEXITCODE 0 "version-repeat"
+      - name: Tier H empty-root branches
+        run: |
+          $Empty = "$env:RUNNER_TEMP/smoke/h-empty"
+          New-Item -ItemType Directory -Force -Path "$Empty/scoop" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$Empty/global" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$Empty/cache" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$Empty/xdg" | Write-Output
+          $env:SCOOP = "$Empty/scoop"
+          $env:SCOOP_GLOBAL = "$Empty/global"
+          $env:SCOOP_CACHE = "$Empty/cache"
+          $env:XDG_CONFIG_HOME = "$Empty/xdg"
+          $env:SCOOP_ARCH = "64bit"
+          $Exe = "$env:RUNNER_TEMP/smoke/bin/gscoop.exe"
+          function Assert-Code($Actual, $Want, $Name) { if ($Actual -ne $Want) { Write-Output "FAIL ${Name}: want ${Want} got ${Actual}"; exit 1 }; Write-Output "PASS ${Name} exit ${Actual}" }
+          & $Exe list 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "list-empty"
+          & $Exe bucket list 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 2 "bucket-list-empty"
+          & $Exe search zzz-no-such-app-zzz 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "search-empty-no-match"
+          & $Exe status | Write-Output; Assert-Code $LASTEXITCODE 0 "status-empty"
+          & $Exe checkup | Write-Output; Assert-Code $LASTEXITCODE 0 "checkup-empty"
+      - name: Upload smoke logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-hermetic-logs
+          path: ${{ runner.temp }}/smoke/logs
+          if-no-files-found: warn
+
+  smoke-local:
+    runs-on: windows-latest
+    needs: smoke-hermetic
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build binary
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP/smoke/bin" | Write-Output
+          go build -o "$env:RUNNER_TEMP/smoke/bin/gscoop.exe" ./cmd/gscoop
+      - name: Seed local roots and persist fixture
+        run: |
+          $Root = "$env:RUNNER_TEMP/smoke/l"
+          New-Item -ItemType Directory -Force -Path "$Root/scoop" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$Root/global" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$Root/cache" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$Root/xdg/scoop" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP/smoke/logs" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$Root/scoop/buckets/main/bucket" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$Root/src/tiny" | Write-Output
+          # Local files only; no network fetch for the fixture.
+          Set-Content -Path "$Root/src/tiny/tiny.cmd" -Value "@echo off`r`necho tiny-local" -Encoding ascii
+          New-Item -ItemType Directory -Force -Path "$Root/src/tiny/data" | Write-Output
+          Set-Content -Path "$Root/src/tiny/data/keep.txt" -Value "keep" -Encoding ascii
+          $HookPre = 'New-Item -ItemType File -Force -Path "$dir\\.smoke-hook"'
+          $HookPost = 'Add-Content -Path "$dir\\.smoke-hook" -Value "post"'
+          $Obj = [ordered]@{ version = "1.0.0"; description = "Local fixture" }
+          $Obj.homepage = "https://example.com/tiny"
+          $Obj.license = "MIT"
+          $Obj.bin = "tiny.cmd"
+          $Obj.persist = "data"
+          $Obj.env_set = @{ SMOKE_TINY = "1" }
+          $Obj.pre_install = @($HookPre)
+          $Obj.post_install = @($HookPost)
+          $Manifest = ($Obj | ConvertTo-Json -Compress)
+          Set-Content -Path "$Root/scoop/buckets/main/bucket/tiny.json" -Value $Manifest -Encoding utf8
+          Set-Content -Path "$Root/scoop/workspace/tiny.json" -Value $Manifest -Encoding utf8
+          Write-Output "Local seed complete at $Root"
+      - name: Tier L download offline and docs
+        run: |
+          $env:SCOOP = "$env:RUNNER_TEMP/smoke/l/scoop"
+          $env:SCOOP_GLOBAL = "$env:RUNNER_TEMP/smoke/l/global"
+          $env:SCOOP_CACHE = "$env:RUNNER_TEMP/smoke/l/cache"
+          $env:XDG_CONFIG_HOME = "$env:RUNNER_TEMP/smoke/l/xdg"
+          $env:SCOOP_ARCH = "64bit"
+          $Exe = "$env:RUNNER_TEMP/smoke/bin/gscoop.exe"
+          function Assert-Code($Actual, $Want, $Name) { if ($Actual -ne $Want) { Write-Output "FAIL ${Name}: want ${Want} got ${Actual}"; exit 1 }; Write-Output "PASS ${Name} exit ${Actual}" }
+          # Cache show runs offline; loopback download runs with install step.
+          & $Exe cache show | Write-Output; Assert-Code $LASTEXITCODE 0 "cache-show-local"
+      - name: Tier L bucket add rm on local bare repo
+        run: |
+          $env:SCOOP = "$env:RUNNER_TEMP/smoke/l/scoop"
+          $env:SCOOP_GLOBAL = "$env:RUNNER_TEMP/smoke/l/global"
+          $env:SCOOP_CACHE = "$env:RUNNER_TEMP/smoke/l/cache"
+          $env:XDG_CONFIG_HOME = "$env:RUNNER_TEMP/smoke/l/xdg"
+          $env:SCOOP_ARCH = "64bit"
+          $Exe = "$env:RUNNER_TEMP/smoke/bin/gscoop.exe"
+          function Assert-Code($Actual, $Want, $Name) { if ($Actual -ne $Want) { Write-Output "FAIL ${Name}: want ${Want} got ${Actual}"; exit 1 }; Write-Output "PASS ${Name} exit ${Actual}" }
+          $Git = Get-Command git -ErrorAction SilentlyContinue
+          if ($null -eq $Git) { Write-Output "ERROR git.exe required for bucket fixture"; exit 1 }
+          $Bare = "$env:RUNNER_TEMP/smoke/l/bare-fixture.git"
+          $Work = "$env:RUNNER_TEMP/smoke/l/work"
+          git init --bare "$Bare"; Assert-Code $LASTEXITCODE 0 "git-init-bare"
+          git init "$Work"; Assert-Code $LASTEXITCODE 0 "git-init-work"
+          New-Item -ItemType Directory -Force -Path "$Work/bucket" | Write-Output
+          Copy-Item -Path "$env:RUNNER_TEMP/smoke/l/scoop/buckets/main/bucket/tiny.json" -Destination "$Work/bucket/tiny.json"
+          git -C "$Work" add bucket/tiny.json; Assert-Code $LASTEXITCODE 0 "git-add"
+          git -C "$Work" -c user.email=smoke@example.com -c user.name=smoke commit -m fixture; Assert-Code $LASTEXITCODE 0 "git-commit"
+          git -C "$Work" remote add origin "$Bare"; Assert-Code $LASTEXITCODE 0 "git-remote"
+          git -C "$Work" push origin HEAD:refs/heads/master; Assert-Code $LASTEXITCODE 0 "git-push"
+          & $Exe bucket add fixture "$Bare" | Write-Output; Assert-Code $LASTEXITCODE 0 "bucket-add-local"
+          & $Exe bucket list | Write-Output; Assert-Code $LASTEXITCODE 0 "bucket-list-after-add"
+          & $Exe bucket add fixture "$Bare" 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 2 "bucket-add-duplicate"
+          & $Exe bucket rm fixture | Write-Output; Assert-Code $LASTEXITCODE 0 "bucket-rm-local"
+      - name: Tier L install update reset cleanup import uninstall
+        run: |
+          $env:SCOOP = "$env:RUNNER_TEMP/smoke/l/scoop"
+          $env:SCOOP_GLOBAL = "$env:RUNNER_TEMP/smoke/l/global"
+          $env:SCOOP_CACHE = "$env:RUNNER_TEMP/smoke/l/cache"
+          $env:XDG_CONFIG_HOME = "$env:RUNNER_TEMP/smoke/l/xdg"
+          $env:SCOOP_ARCH = "64bit"
+          $Exe = "$env:RUNNER_TEMP/smoke/bin/gscoop.exe"
+          function Assert-Code($Actual, $Want, $Name) { if ($Actual -ne $Want) { Write-Output "FAIL ${Name}: want ${Want} got ${Actual}"; exit 1 }; Write-Output "PASS ${Name} exit ${Actual}" }
+          $Root = "$env:RUNNER_TEMP/smoke/l"
+          $SvcDir = "$Root/svc"
+          New-Item -ItemType Directory -Force -Path $SvcDir | Write-Output
+          Compress-Archive -Path "$Root/src/tiny/*" -DestinationPath "$SvcDir/tiny.zip" -Force
+          $Tcp = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback, 0)
+          $Tcp.Start()
+          $Port = ($Tcp.LocalEndpoint -as [Net.IPEndPoint]).Port
+          $Tcp.Stop()
+          # Serve fixture dir over loopback with .NET listener.
+          $Job = Start-Job -ScriptBlock {
+            param($D, $P)
+            $L = New-Object Net.HttpListener
+            $L.Prefixes.Add("http://127.0.0.1:$P/")
+            $L.Start()
+            while ($L.IsListening) {
+              $C = $L.GetContext()
+              $F = Join-Path $D ($C.Request.Url.LocalPath.TrimStart("/"))
+              if ([IO.File]::Exists($F)) {
+                $B = [IO.File]::ReadAllBytes($F)
+                $C.Response.ContentLength64 = $B.Length
+                $C.Response.OutputStream.Write($B, 0, $B.Length)
+              } else { $C.Response.StatusCode = 404 }
+              $C.Response.OutputStream.Close()
+            }
+          } -ArgumentList $SvcDir, $Port
+          $Url = "http://127.0.0.1:$Port/tiny.zip"
+          $HookPre = 'New-Item -ItemType File -Force -Path "$dir\\.smoke-hook"'
+          $HookPost = 'Add-Content -Path "$dir\\.smoke-hook" -Value "post"'
+          $Obj = [ordered]@{ version = "1.0.0"; description = "Local fixture" }
+          $Obj.homepage = "https://example.com/tiny"
+          $Obj.license = "MIT"
+          $Obj.url = $Url
+          $Obj.bin = "tiny.cmd"
+          $Obj.persist = "data"
+          $Obj.env_set = @{ SMOKE_TINY = "1" }
+          $Obj.pre_install = @($HookPre)
+          $Obj.post_install = @($HookPost)
+          Set-Content -Path "$Root/scoop/buckets/main/bucket/tiny.json" -Value ($Obj | ConvertTo-Json -Compress) -Encoding utf8
+          for ($i = 0; $i -lt 50; $i++) {
+            try { Invoke-WebRequest -UseBasicParsing -Uri $Url | Write-Output; break } catch { Start-Sleep -Milliseconds 100 }
+          }
+          try {
+            & $Exe download tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "download-loopback"
+            & $Exe install tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "install-local"
+            if (-not (Test-Path "$env:SCOOP/persist/tiny")) { Write-Output "FAIL persist dir missing"; exit 1 }
+            Write-Output "PASS persist dir present"
+            & $Exe info tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "info-after-install"
+            & $Exe config SMOKE_TINY | Write-Output; Assert-Code $LASTEXITCODE 0 "config-probe"
+            & $Exe export | Write-Output; Assert-Code $LASTEXITCODE 0 "export-roundtrip"
+            & $Exe export | Set-Content -Path "$Root/scoopfile.json" -Encoding utf8
+            & $Exe update tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "update-local"
+            & $Exe reset tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "reset-local"
+            & $Exe cleanup tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "cleanup-local"
+            & $Exe import "$Root/scoopfile.json" | Write-Output; Assert-Code $LASTEXITCODE 0 "import-roundtrip"
+            & $Exe uninstall tiny | Write-Output; Assert-Code $LASTEXITCODE 0 "uninstall-local"
+          } finally {
+            Stop-Job $Job
+            Remove-Job $Job -Force
+          }
+      - name: Tier L shim home virustotal
+        run: |
+          $env:SCOOP = "$env:RUNNER_TEMP/smoke/l/scoop"
+          $env:SCOOP_GLOBAL = "$env:RUNNER_TEMP/smoke/l/global"
+          $env:SCOOP_CACHE = "$env:RUNNER_TEMP/smoke/l/cache"
+          $env:XDG_CONFIG_HOME = "$env:RUNNER_TEMP/smoke/l/xdg"
+          $env:SCOOP_ARCH = "64bit"
+          $Exe = "$env:RUNNER_TEMP/smoke/bin/gscoop.exe"
+          function Assert-Code($Actual, $Want, $Name) { if ($Actual -ne $Want) { Write-Output "FAIL ${Name}: want ${Want} got ${Actual}"; exit 1 }; Write-Output "PASS ${Name} exit ${Actual}" }
+          $Target = "$env:RUNNER_TEMP/smoke/l/src/tiny/tiny.cmd"
+          & $Exe shim add smokeshim "$Target" | Write-Output; Assert-Code $LASTEXITCODE 0 "shim-add"
+          & $Exe shim list smokeshim | Write-Output; Assert-Code $LASTEXITCODE 0 "shim-list-added"
+          & $Exe shim alter smokeshim | Write-Output; Assert-Code $LASTEXITCODE 0 "shim-alter"
+          & $Exe shim rm smokeshim | Write-Output; Assert-Code $LASTEXITCODE 0 "shim-rm"
+          # Browser launch cannot run headless; assert missing-app path only.
+          & $Exe home no-such-app 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "home-missing-app"
+          & $Exe virustotal -u tiny 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 16 "virustotal-missing-key"
+          & $Exe virustotal 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 1 "virustotal-bad-args"
+      - name: Upload smoke logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-local-logs
+          path: ${{ runner.temp }}/smoke/logs
+          if-no-files-found: warn
+
+  smoke-live:
+    runs-on: windows-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    continue-on-error: true
+    timeout-minutes: 30
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build binary
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP/smoke/bin" | Write-Output
+          go build -o "$env:RUNNER_TEMP/smoke/bin/gscoop.exe" ./cmd/gscoop
+      - name: Tier V live bucket and remote search
+        run: |
+          $env:SCOOP = "$env:RUNNER_TEMP/smoke/v/scoop"
+          $env:SCOOP_GLOBAL = "$env:RUNNER_TEMP/smoke/v/global"
+          $env:SCOOP_CACHE = "$env:RUNNER_TEMP/smoke/v/cache"
+          $env:XDG_CONFIG_HOME = "$env:RUNNER_TEMP/smoke/v/xdg"
+          $env:SCOOP_ARCH = "64bit"
+          $Exe = "$env:RUNNER_TEMP/smoke/bin/gscoop.exe"
+          function Assert-Code($Actual, $Want, $Name) { if ($Actual -ne $Want) { Write-Output "FAIL ${Name}: want ${Want} got ${Actual}"; exit 1 }; Write-Output "PASS ${Name} exit ${Actual}" }
+          New-Item -ItemType Directory -Force -Path "$env:SCOOP" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$env:SCOOP_GLOBAL" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$env:SCOOP_CACHE" | Write-Output
+          New-Item -ItemType Directory -Force -Path "$env:XDG_CONFIG_HOME" | Write-Output
+          # Temp roots only; never mutate user profile scoop state.
+          & $Exe bucket add extras https://github.com/ScoopInstaller/Extras.git | Write-Output
+          Assert-Code $LASTEXITCODE 0 "bucket-add-extras"
+          & $Exe search git | Write-Output; Assert-Code $LASTEXITCODE 0 "search-remote"
+          & $Exe bucket rm extras | Write-Output; Assert-Code $LASTEXITCODE 0 "bucket-rm-extras"
+      - name: Tier V virustotal gated check
+        run: |
+          $env:SCOOP = "$env:RUNNER_TEMP/smoke/v/scoop"
+          $env:SCOOP_GLOBAL = "$env:RUNNER_TEMP/smoke/v/global"
+          $env:SCOOP_CACHE = "$env:RUNNER_TEMP/smoke/v/cache"
+          $env:XDG_CONFIG_HOME = "$env:RUNNER_TEMP/smoke/v/xdg"
+          $env:SCOOP_ARCH = "64bit"
+          $Exe = "$env:RUNNER_TEMP/smoke/bin/gscoop.exe"
+          function Assert-Code($Actual, $Want, $Name) { if ($Actual -ne $Want) { Write-Output "FAIL ${Name}: want ${Want} got ${Actual}"; exit 1 }; Write-Output "PASS ${Name} exit ${Actual}" }
+          if ("${{ secrets.VIRUSTOTAL_API_KEY }}" -eq "") { & $Exe virustotal -u tiny 2>&1 | Write-Output; Assert-Code $LASTEXITCODE 16 "virustotal-no-key" }
+          else { & $Exe virustotal tiny --scan | Write-Output; Write-Output "PASS virustotal-scan attempted" }
+      - name: Upload smoke logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-live-logs
+          path: ${{ runner.temp }}/smoke/logs
+          if-no-files-found: warn

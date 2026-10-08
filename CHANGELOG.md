@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ScoopInstaller/Scoop@master`.
 - Tagged-release pipeline: Windows builds of `./cmd/gscoop`, SHA-256
   checksums, and GitHub release upload on `v*` tags.
+- CI smoke tiers for all commands: hermetic dispatch/read-only cases, local persist-fixture round-trip, and nightly live bucket plus VirusTotal coverage on windows-latest.
 
 ### Fixed
 

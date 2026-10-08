@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "description": "Minimal smoke fixture exercising persist, env, and hooks.",
+  "homepage": "https://example.com/tiny",
+  "license": "MIT",
+  "bin": "tiny.cmd",
+  "persist": "data",
+  "env_set": {
+    "SMOKE_TINY": "1"
+  },
+  "pre_install": [
+    "\"pre\" | Out-File (Join-Path $dir '.smoke-pre') -Encoding ascii"
+  ],
+  "post_install": [
+    "\"post\" | Out-File (Join-Path $dir '.smoke-post') -Encoding ascii"
+  ]
+}
